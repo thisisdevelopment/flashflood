@@ -106,7 +106,6 @@ func handleTicker(ff *FlashFlood) {
 					ff.lastFlushMutex.Unlock()
 
 					if elapsed > ff.flushTimeout {
-						// fmt.Println("FLUSHTIMEOUT.........")
 						ff.Drain(true)
 					}
 				}
@@ -161,10 +160,6 @@ func (i *FlashFlood) Unshift(objs ...interface{}) error {
 func (i *FlashFlood) flush2Channel(objs []interface{}, isInteralBuffer bool) {
 
 	bl := int64(len(objs))
-
-	i.lastFlushMutex.Lock()
-	i.lastFlush = time.Now()
-	i.lastFlushMutex.Unlock()
 
 	if bl > 0 && i.channelFetched {
 
@@ -280,6 +275,11 @@ func (i *FlashFlood) GetOnChan(amount int) error {
 
 //Drain drains buffer into channel or as slice (onChannel bool)
 func (i *FlashFlood) Drain(onChannel bool) ([]interface{}, error) {
+
+	i.lastFlushMutex.Lock()
+	i.lastFlush = time.Now()
+	i.lastFlushMutex.Unlock()
+
 	i.mutex.Lock()
 	if len(i.buffer) == 0 {
 		i.mutex.Unlock()
