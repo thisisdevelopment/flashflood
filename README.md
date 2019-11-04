@@ -3,6 +3,7 @@
 - [Introduction](#introduction)
 - [Getting Started](#getting-started)
   - [Simple Usage using a channel](#simple-usage-using-a-channel)
+- [Full Docs](#full-docs)
 - [Contributing](#contributing)
 - [License](#license)
 
@@ -29,10 +30,14 @@ You can set the gate amount in order to group elements flushed out and/or perfor
     ff := flashflood.New(&flashflood.Opts{})
     ch, err := ff.GetChan()
 
+    ff.Push(obj1, obj2, ... )
+
     select {
     case v := <-ch:
         fmt.Printf("FLUSHED: %#v\n", v)
     }
+# Full Docs
+https://godoc.org/github.com/thisisdevelopment/flashflood
 
 # Contributing 
 You can help to deliver a better flashflood buffer, check out things you can do [CoC.md](CoC.md)
