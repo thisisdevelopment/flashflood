@@ -98,7 +98,7 @@ func handleTicker(ff *FlashFlood) {
 			ff.lastActionMutex.Unlock()
 
 			if elapsed > ff.timeout {
-				ff.Drain(true)
+				ff.Drain(true, false)
 			} else {
 				if ff.flushEnabled {
 					ff.lastFlushMutex.Lock()
@@ -106,7 +106,7 @@ func handleTicker(ff *FlashFlood) {
 					ff.lastFlushMutex.Unlock()
 
 					if elapsed > ff.flushTimeout {
-						ff.Drain(true)
+						ff.Drain(true, true)
 					}
 				}
 			}
@@ -138,7 +138,7 @@ func (i *FlashFlood) Push(objs ...interface{}) error {
 	i.mutex.Lock()
 	i.buffer = append(i.buffer, objs...)
 	drainObjs := i.handleDrainObjs()
-	i.flush2Channel(drainObjs, false)
+	i.flush2Channel(drainObjs, false, false)
 	i.mutex.Unlock()
 	i.Ping()
 	// TODO err is always nil here, stub to not break bw compatibility in the future
@@ -150,14 +150,14 @@ func (i *FlashFlood) Unshift(objs ...interface{}) error {
 	i.mutex.Lock()
 	i.buffer = append(objs, i.buffer...)
 	drainObjs := i.handleDrainObjs()
-	i.flush2Channel(drainObjs, false)
+	i.flush2Channel(drainObjs, false, false)
 	i.mutex.Unlock()
 	i.Ping()
 	// TODO err is always nil here, stub to not break bw compatibility in the future
 	return nil
 }
 
-func (i *FlashFlood) flush2Channel(objs []interface{}, isInteralBuffer bool) {
+func (i *FlashFlood) flush2Channel(objs []interface{}, isInteralBuffer bool, respectGate bool) {
 
 	bl := int64(len(objs))
 
@@ -166,11 +166,13 @@ func (i *FlashFlood) flush2Channel(objs []interface{}, isInteralBuffer bool) {
 		if isInteralBuffer {
 
 			if i.gateAmount > 1 {
-				if bl > i.gateAmount {
+				if bl >= i.gateAmount {
 					objs, i.buffer = i.buffer[0:i.gateAmount], i.buffer[i.gateAmount:]
 				} else {
-					objs = i.buffer
-					i.clearBuffer()
+					if !respectGate {
+						objs = i.buffer
+						i.clearBuffer()
+					}
 				}
 			} else {
 				objs = i.buffer
@@ -187,8 +189,8 @@ func (i *FlashFlood) flush2Channel(objs []interface{}, isInteralBuffer bool) {
 			i.floodChan <- v
 		}
 
-		if isInteralBuffer && len(i.buffer) > 0 {
-			i.flush2Channel(i.buffer, true)
+		if isInteralBuffer && len(i.buffer) > 0 && !respectGate {
+			i.flush2Channel(i.buffer, true, respectGate)
 		}
 
 	}
@@ -268,13 +270,13 @@ func (i *FlashFlood) GetOnChan(amount int) error {
 	_ = err
 	//TODO implement error handling once Get can throw an error
 
-	i.flush2Channel(drainObjs, false)
+	i.flush2Channel(drainObjs, false, false)
 
 	return nil
 }
 
 //Drain drains buffer into channel or as slice (onChannel bool)
-func (i *FlashFlood) Drain(onChannel bool) ([]interface{}, error) {
+func (i *FlashFlood) Drain(onChannel bool, respectGate bool) ([]interface{}, error) {
 
 	i.lastFlushMutex.Lock()
 	i.lastFlush = time.Now()
@@ -287,7 +289,7 @@ func (i *FlashFlood) Drain(onChannel bool) ([]interface{}, error) {
 	}
 
 	if onChannel {
-		i.flush2Channel(i.buffer, true)
+		i.flush2Channel(i.buffer, true, respectGate)
 		i.clearBuffer()
 		i.mutex.Unlock()
 		return nil, nil

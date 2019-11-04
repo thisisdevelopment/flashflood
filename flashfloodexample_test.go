@@ -569,7 +569,7 @@ func ExampleFlashFlood_Drain_example01() {
 	_ = err
 	ff.Push(b[0], b[1], b[2], b[3], b[4], b[5])
 
-	ff.Drain(true)
+	ff.Drain(true, false)
 
 	run := true
 	for run {
@@ -612,7 +612,7 @@ func ExampleFlashFlood_Drain_example02() {
 	_ = ch
 	ff.Push(b[0], b[1], b[2], b[3], b[4], b[5])
 
-	e, _ := ff.Drain(false)
+	e, _ := ff.Drain(false, false)
 
 	fmt.Println("RESULT:", e)
 

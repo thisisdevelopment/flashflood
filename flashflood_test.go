@@ -121,7 +121,7 @@ func TestDrainOnChannel(t *testing.T) {
 		t.Fatalf("expected 3 in buffer; got %v", ff.Count())
 	}
 
-	ff.Drain(true)
+	ff.Drain(true, false)
 
 	if ff.Count() != 0 {
 		t.Fatalf("expected 0 in buffer; got %v", ff.Count())
@@ -168,7 +168,7 @@ func TestDrainWithReturn(t *testing.T) {
 		t.Fatalf("expected 3 in buffer; got %v", ff.Count())
 	}
 
-	drained, err := ff.Drain(false)
+	drained, err := ff.Drain(false, false)
 	if err != nil {
 		t.Fatalf("could not drain object: %v", err)
 	}
@@ -438,6 +438,7 @@ func TestGetOnChan(t *testing.T) {
 func TestFlushTimeoutTimeout(t *testing.T) {
 	ff := flashflood.New(&flashflood.Opts{
 		BufferAmount: 4,
+		GateAmount:   2,
 		Timeout:      time.Duration(1 * time.Second),
 		TickerTime:   time.Duration(5 * time.Millisecond),
 		FlushEnabled: true,
@@ -452,9 +453,9 @@ func TestFlushTimeoutTimeout(t *testing.T) {
 
 	o := getTestObjs(5)
 
-	ff.Push(o[0])
+	ff.Push(o[0], o[1])
 	time.Sleep(25 * time.Millisecond)
-	ff.Push(o[1])
+	ff.Push(o[2])
 	time.Sleep(100 * time.Millisecond)
 
 	drained := []TestObj{}
