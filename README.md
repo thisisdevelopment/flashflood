@@ -26,13 +26,13 @@ You can set the gate amount in order to group elements flushed out and/or perfor
 ## Simple Usage using a channel
 
 >
-    	ff := flashflood.New(&flashflood.Opts{})
-        ch, err := ff.GetChan()
+    ff := flashflood.New(&flashflood.Opts{})
+    ch, err := ff.GetChan()
 
-        select {
-        case v := <-ch:
-            fmt.Printf("FLUSHED: %#v\n", v)
-        }
+    select {
+    case v := <-ch:
+        fmt.Printf("FLUSHED: %#v\n", v)
+    }
 
 # Contributing 
 You can help to deliver a better flashflood buffer, check out things you can do [CoC.md](CoC.md)
