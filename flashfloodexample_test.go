@@ -52,7 +52,7 @@ func ExampleFlashFlood_Push_example01() {
 	// Output: KV: k1 v1
 	// KV: k2 v2
 }
-func ExampleFlashFlood_Unshift() {
+func ExampleFlashFlood_Unshift_example01() {
 
 	ff := flashflood.New(&flashflood.Opts{
 		BufferAmount: 3,
@@ -64,8 +64,43 @@ func ExampleFlashFlood_Unshift() {
 	ch, err := ff.GetChan()
 	_ = err
 	ff.Push(o[0], o[1], o[2])
+
 	ff.Unshift(o[3])
 	ff.Unshift(o[4])
+
+	select {
+	case v := <-ch:
+		fmt.Println("KV:", v.(TestObj).Key, v.(TestObj).Value)
+	}
+
+	select {
+	case v := <-ch:
+		fmt.Println("KV:", v.(TestObj).Key, v.(TestObj).Value)
+	}
+
+	select {
+	case v := <-ch:
+		fmt.Println("KV:", v.(TestObj).Key, v.(TestObj).Value)
+	}
+
+	// Output: KV: k4 v4
+	// KV: k5 v5
+	// KV: k1 v1
+}
+
+func ExampleFlashFlood_Unshift_example02() {
+
+	ff := flashflood.New(&flashflood.Opts{
+		BufferAmount: 3,
+		Timeout:      time.Duration(250 * time.Millisecond),
+	})
+
+	o := getTestObjs(5)
+
+	ch, err := ff.GetChan()
+	_ = err
+	ff.Push(o[0], o[1], o[2])
+	ff.Unshift(o[3], o[4])
 
 	select {
 	case v := <-ch:

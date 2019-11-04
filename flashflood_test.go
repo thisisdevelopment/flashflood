@@ -434,3 +434,45 @@ func TestGetOnChan(t *testing.T) {
 	}
 
 }
+
+func TestFlushTimeoutTimeout(t *testing.T) {
+	ff := flashflood.New(&flashflood.Opts{
+		BufferAmount: 4,
+		Timeout:      time.Duration(1 * time.Second),
+		TickerTime:   time.Duration(5 * time.Millisecond),
+		FlushEnabled: true,
+		FlushTimeout: time.Duration(50 * time.Millisecond),
+	})
+
+	ch, err := ff.GetChan()
+
+	if err != nil {
+		t.Fatalf("could not get channel: %v", err)
+	}
+
+	o := getTestObjs(5)
+
+	ff.Push(o[0])
+	time.Sleep(25 * time.Millisecond)
+	ff.Push(o[1])
+	time.Sleep(100 * time.Millisecond)
+
+	drained := []TestObj{}
+	run := true
+
+	for run {
+		select {
+		case v := <-ch:
+			// fmt.Println("V DRAIN", v)
+			drained = append(drained, v.(TestObj))
+		default:
+			run = false
+			break
+		}
+	}
+
+	if int64(len(drained)) != 2 {
+		t.Fatalf("expected %d in buffer; got %v", 2, len(drained))
+	}
+
+}

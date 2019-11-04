@@ -18,7 +18,12 @@ type FlashFlood struct {
 	channelFetched  bool
 	lastAction      time.Time
 	lastActionMutex *sync.Mutex
-	timeout         time.Duration
+
+	lastFlush      time.Time
+	lastFlushMutex *sync.Mutex
+	flushTimeout   time.Duration
+	flushEnabled   bool
+	timeout        time.Duration
 
 	funcstack  []FuncStack
 	gateAmount int64
@@ -46,6 +51,10 @@ type FF interface {
 type Opts struct {
 	// the amount of the internal buffer, if buffer is full elements will be drained to channel
 	BufferAmount int64
+	// enable the flush timeout
+	FlushEnabled bool
+	// default time before the buffer flush times out and will start draining its contents to the channel
+	FlushTimeout time.Duration
 	// default time before the buffer times out and will start draining its contents to the channel
 	Timeout time.Duration
 	// default ticker time the buffer will check for activity (see Timeout)

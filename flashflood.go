@@ -39,10 +39,20 @@ func New(opts *Opts) *FlashFlood {
 		gateAmount:      opts.GateAmount,
 		lastAction:      time.Now(),
 		lastActionMutex: &sync.Mutex{},
-		mutex:           &sync.Mutex{},
-		ticker:          time.NewTicker(opts.TickerTime),
-		timeout:         opts.Timeout,
+
+		flushTimeout:   opts.FlushTimeout,
+		lastFlushMutex: &sync.Mutex{},
+		flushEnabled:   opts.FlushEnabled,
+
+		mutex:   &sync.Mutex{},
+		ticker:  time.NewTicker(opts.TickerTime),
+		timeout: opts.Timeout,
 	}
+
+	if ff.flushEnabled {
+		ff.lastFlush = time.Now()
+	}
+
 	go handleTicker(ff)
 	return ff
 }
@@ -86,8 +96,20 @@ func handleTicker(ff *FlashFlood) {
 			ff.lastActionMutex.Lock()
 			elapsed := time.Since(ff.lastAction)
 			ff.lastActionMutex.Unlock()
+
 			if elapsed > ff.timeout {
 				ff.Drain(true)
+			} else {
+				if ff.flushEnabled {
+					ff.lastFlushMutex.Lock()
+					elapsed = time.Since(ff.lastFlush)
+					ff.lastFlushMutex.Unlock()
+
+					if elapsed > ff.flushTimeout {
+						// fmt.Println("FLUSHTIMEOUT.........")
+						ff.Drain(true)
+					}
+				}
 			}
 		}
 	}
@@ -140,6 +162,10 @@ func (i *FlashFlood) flush2Channel(objs []interface{}, isInteralBuffer bool) {
 
 	bl := int64(len(objs))
 
+	i.lastFlushMutex.Lock()
+	i.lastFlush = time.Now()
+	i.lastFlushMutex.Unlock()
+
 	if bl > 0 && i.channelFetched {
 
 		if isInteralBuffer {
@@ -169,6 +195,7 @@ func (i *FlashFlood) flush2Channel(objs []interface{}, isInteralBuffer bool) {
 		if isInteralBuffer && len(i.buffer) > 0 {
 			i.flush2Channel(i.buffer, true)
 		}
+
 	}
 
 }
