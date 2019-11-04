@@ -19,7 +19,7 @@ const (
 	defaultTimeout = time.Duration(100 * time.Millisecond)
 	// default ticker time the buffer will check for activity (see defaultTimeout )
 	defaultTickerTime = time.Duration(10 * time.Millisecond)
-	// default gate amount, open up the gate is this amount of elements need to be drained. (useful in conjuction with callback functions)
+	// default gate amount, open up the gate is this amount of elements need to be drained. (useful in conjunction with callback functions)
 	defaultGateAmount = int64(1)
 	// debug output of the drain handlers' current elements
 	debug = false

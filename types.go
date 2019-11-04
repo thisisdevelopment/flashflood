@@ -50,7 +50,7 @@ type Opts struct {
 	TickerTime time.Duration
 	// the amount the channel will buffer
 	ChannelBuffer uint64
-	// default gate amount, open up the gate is this amount of elements need to be drained. (useful in conjuction with callback functions)
+	// default gate amount, open up the gate is this amount of elements need to be drained. (useful in conjunction with callback functions)
 	GateAmount int64
 	// debug output of the drain handlers' current elements
 	Debug bool
