@@ -167,8 +167,9 @@ func (i *FlashFlood) flush2Channel(objs []interface{}, isInteralBuffer bool, res
 
 			if i.gateAmount > 1 {
 				if bl >= i.gateAmount {
-					objs, i.buffer = i.buffer[0:i.gateAmount], i.buffer[i.gateAmount:]
+					objs, i.buffer = objs[0:i.gateAmount], objs[i.gateAmount:]
 				} else {
+
 					if !respectGate {
 						objs = i.buffer
 						i.clearBuffer()
@@ -180,6 +181,7 @@ func (i *FlashFlood) flush2Channel(objs []interface{}, isInteralBuffer bool, res
 			}
 
 		}
+		blAfter := int64(len(objs))
 
 		for _, f := range i.funcstack {
 			objs = f(objs, i)
@@ -189,10 +191,9 @@ func (i *FlashFlood) flush2Channel(objs []interface{}, isInteralBuffer bool, res
 			i.floodChan <- v
 		}
 
-		if isInteralBuffer && len(i.buffer) > 0 && !respectGate {
+		if isInteralBuffer && len(i.buffer) > 0 && blAfter < bl {
 			i.flush2Channel(i.buffer, true, respectGate)
 		}
-
 	}
 
 }

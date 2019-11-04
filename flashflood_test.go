@@ -435,7 +435,7 @@ func TestGetOnChan(t *testing.T) {
 
 }
 
-func TestFlushTimeoutTimeout(t *testing.T) {
+func TestFlushTimeout(t *testing.T) {
 	ff := flashflood.New(&flashflood.Opts{
 		BufferAmount: 4,
 		GateAmount:   2,
@@ -453,14 +453,13 @@ func TestFlushTimeoutTimeout(t *testing.T) {
 
 	o := getTestObjs(5)
 
-	ff.Push(o[0], o[1])
+	ff.Push(o[0])
 	time.Sleep(25 * time.Millisecond)
-	ff.Push(o[2])
+	ff.Push(o[1])
 	time.Sleep(100 * time.Millisecond)
 
 	drained := []TestObj{}
 	run := true
-
 	for run {
 		select {
 		case v := <-ch:
@@ -473,7 +472,30 @@ func TestFlushTimeoutTimeout(t *testing.T) {
 	}
 
 	if int64(len(drained)) != 2 {
-		t.Fatalf("expected %d in buffer; got %v", 2, len(drained))
+		t.Fatalf("(1) expected %d in buffer; got %v", 2, len(drained))
+	}
+
+	ff.Push(o[2])
+	ff.Push(o[3])
+	ff.Push(o[4])
+
+	time.Sleep(1500 * time.Millisecond)
+	drained = []TestObj{}
+	run = true
+	for run {
+		select {
+		case v := <-ch:
+			// fmt.Println("V DRAIN", v)
+			drained = append(drained, v.(TestObj))
+		default:
+			run = false
+			break
+		}
+	}
+
+	// fmt.Println(drained)
+	if int64(len(drained)) != 3 {
+		t.Fatalf("(2) expected %d in buffer; got %v", 3, len(drained))
 	}
 
 }
