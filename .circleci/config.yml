@@ -1,4 +1,6 @@
-version: 2 # use CircleCI 2.0
+version: 2.1 # use CircleCI 2.0
+orbs:
+  codecov: codecov/codecov@1.0.5
 jobs: # basic units of work in a run
   build: # runs not using Workflows must have a `build` job as entry point
     docker: # run the steps with Docker
@@ -33,6 +35,12 @@ jobs: # basic units of work in a run
             trap "go-junit-report <${TEST_RESULTS}/go-test.out > ${TEST_RESULTS}/go-test-report.xml" EXIT
             make test | tee ${TEST_RESULTS}/go-test.out
 
+      - run:
+          name: Run code coverage
+          command: |
+            go test -race -coverprofile=coverage.txt -covermode=atomic
+            mv coverage.txt /tmp/test-results/
+
       - run: make # pull and build dependencies for the project
 
       - save_cache: # Store cache in the /go/pkg directory
@@ -46,3 +54,6 @@ jobs: # basic units of work in a run
 
       - store_test_results: # Upload test results for display in Test Summary: https://circleci.com/docs/2.0/collect-test-data/
           path: /tmp/test-results
+
+      - codecov/upload:
+          file: /tmp/test-tesults/coverage.txt
