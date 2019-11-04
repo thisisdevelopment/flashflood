@@ -209,6 +209,48 @@ func (i *FlashFlood) clearBuffer() {
 	i.buffer = nil
 }
 
+//Get amount of elements from buffer
+func (i *FlashFlood) Get(amount int) ([]interface{}, error) {
+	var drainObjs []interface{}
+
+	i.mutex.Lock()
+	bl := len(i.buffer)
+	if bl == 0 {
+		i.mutex.Unlock()
+		return nil, nil
+	}
+
+	if bl <= amount {
+		objs := i.buffer
+		i.clearBuffer()
+		i.mutex.Unlock()
+
+		for _, f := range i.funcstack {
+			objs = f(objs, i)
+		}
+
+		return objs, nil
+	}
+
+	drainObjs, i.buffer = i.buffer[0:amount], i.buffer[amount:]
+	i.mutex.Unlock()
+	for _, f := range i.funcstack {
+		drainObjs = f(drainObjs, i)
+	}
+	return drainObjs, nil
+}
+
+//GetOnChan amount of elements from buffer, flush to channel
+func (i *FlashFlood) GetOnChan(amount int) error {
+	drainObjs, err := i.Get(amount)
+	_ = err
+	//TODO implement error handling once Get can throw an error
+
+	i.flush2Channel(drainObjs, false)
+
+	return nil
+}
+
 //Drain drains buffer into channel or as slice (onChannel bool)
 func (i *FlashFlood) Drain(onChannel bool) ([]interface{}, error) {
 	i.mutex.Lock()
@@ -227,6 +269,11 @@ func (i *FlashFlood) Drain(onChannel bool) ([]interface{}, error) {
 	objs := i.buffer
 	i.clearBuffer()
 	i.mutex.Unlock()
+
+	for _, f := range i.funcstack {
+		objs = f(objs, i)
+	}
+
 	return objs, nil
 }
 

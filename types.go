@@ -27,17 +27,19 @@ type FlashFlood struct {
 
 //FF the interface
 type FF interface {
-	Push(objs ...interface{}) error
-	Unshift(objs ...interface{}) error
-	Drain(onChannel bool) ([]interface{}, error)
-	GetChan() (<-chan interface{}, error)
-	Ping()
-	Count() uint64
-	Purge() error
 	AddFunc(f ...FuncStack)
+	Count() uint64
+	Drain(onChannel bool) ([]interface{}, error)
 	FuncMergeBytes() FuncStack
-	FuncReturnIndividualBytes() FuncStack
 	FuncMergeChunkedElements() FuncStack
+	FuncReturnIndividualBytes() FuncStack
+	GetChan() (<-chan interface{}, error)
+	GetOnChan(amount int) error
+	Get(amount int) ([]interface{}, error)
+	Unshift(objs ...interface{}) error
+	Ping()
+	Purge() error
+	Push(objs ...interface{}) error
 }
 
 //Opts ...
