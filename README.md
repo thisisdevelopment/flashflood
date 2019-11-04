@@ -3,7 +3,7 @@
 - [Introduction](#introduction)
 - [Getting Started](#getting-started)
   - [Simple Usage using a channel](#simple-usage-using-a-channel)
-- [Full Docs](#full-docs)
+- [Full Docs and Examples](#full-docs-and-examples)
 - [Contributing](#contributing)
 - [License](#license)
 
@@ -36,7 +36,7 @@ You can set the gate amount in order to group elements flushed out and/or perfor
     case v := <-ch:
         fmt.Printf("FLUSHED: %#v\n", v)
     }
-# Full Docs
+# Full Docs and Examples
 https://godoc.org/github.com/thisisdevelopment/flashflood
 
 # Contributing 
