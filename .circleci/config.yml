@@ -56,4 +56,4 @@ jobs: # basic units of work in a run
           path: /tmp/test-results
 
       - codecov/upload:
-          file: /tmp/test-tesults/coverage.txt
+          file: /tmp/test-results/coverage.txt
