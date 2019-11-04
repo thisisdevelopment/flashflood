@@ -10,7 +10,7 @@
 # README IS WIP 
 
 # FlashFlood ring buffer for golang
-[![go report card](https://goreportcard.com/badge/github.com/thisisdevelopment/flashflood "go report card")](https://goreportcard.com/badge/github.com/thisisdevelopment/flashflood)
+[![go report card](https://goreportcard.com/badge/github.com/thisisdevelopment/flashflood "go report card")](https://goreportcard.com/report/github.com/thisisdevelopment/flashflood)
 [![codecov](https://codecov.io/gh/thisisdevelopment/flashflood/branch/master/graph/badge.svg)](https://codecov.io/gh/thisisdevelopment/flashflood)
 [![CircleCI](https://circleci.com/gh/thisisdevelopment/flashflood.svg?style=svg)](https://circleci.com/gh/thisisdevelopment/flashflood)
 
