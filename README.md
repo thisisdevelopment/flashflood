@@ -13,8 +13,7 @@
 [![go report card](https://goreportcard.com/badge/github.com/thisisdevelopment/flashflood "go report card")](https://goreportcard.com/report/github.com/thisisdevelopment/flashflood)
 [![codecov](https://codecov.io/gh/thisisdevelopment/flashflood/branch/master/graph/badge.svg)](https://codecov.io/gh/thisisdevelopment/flashflood)
 [![CircleCI](https://circleci.com/gh/thisisdevelopment/flashflood.svg?style=svg)](https://circleci.com/gh/thisisdevelopment/flashflood)
-
-
+[![GoDoc](https://godoc.org/github.com/thisisdevelopment/flashflood?status.svg)](https://godoc.org/github.com/thisisdevelopment/flashflood)
 
 # Introduction
 flashflood is a ringbuffer on steroids for golang
