@@ -1,10 +1,11 @@
 package flashflood_test
 
 import (
-	"flashflood"
 	"fmt"
 	"strings"
 	"time"
+
+	"github.com/thisisdevelopment/flashflood"
 )
 
 func getTestObjs(amount int) []TestObj {

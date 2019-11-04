@@ -1,10 +1,11 @@
 package flashflood_test
 
 import (
-	"flashflood"
 	"fmt"
 	"testing"
 	"time"
+
+	"github.com/thisisdevelopment/flashflood"
 )
 
 type TestObj struct {
