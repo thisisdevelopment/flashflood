@@ -39,8 +39,8 @@ You can set the gate amount in order to group elements flushed out and/or perfor
 https://godoc.org/github.com/thisisdevelopment/flashflood
 
 # Contributing 
-You can help to deliver a better flashflood buffer, check out things you can do [CoC.md](CoC.md)
+You can help to deliver a better flashflood buffer, check out how you can do things [CONTRIBUTING.md](CONTRIBUTING.md)
 
 # License 
-© [This is Development BV](https://www.thisisdevelopment.nl), 2019~time.Now
+© [This is Development BV](https://www.thisisdevelopment.nl), 2019~time.Now()
 Released under the [MIT License](https://github.com/thisisdevelopment/flashflood/blob/master/LICENSE)
