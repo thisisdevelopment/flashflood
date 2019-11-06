@@ -2,6 +2,7 @@ package flashflood_test
 
 import (
 	"fmt"
+	"math"
 	"testing"
 	"time"
 
@@ -46,6 +47,170 @@ func TestPush(t *testing.T) {
 		}
 	default:
 		t.Fatalf("expected: %#v; got nothing", o[0])
+	}
+
+}
+
+func BenchmarkPushChan(b *testing.B) {
+	b.StopTimer()
+
+	ff := flashflood.New(&flashflood.Opts{
+		Timeout:       time.Duration(10 * time.Millisecond),
+		BufferAmount:  3,
+		ChannelBuffer: uint64(b.N),
+	})
+
+	ff.GetChan()
+	o := getTestObjs(1)
+	b.StartTimer()
+
+	for i := 0; i < b.N; i++ {
+		// fmt.Println(i)
+		ff.Push(o[0])
+	}
+
+}
+
+func BenchmarkPushNoChan(b *testing.B) {
+
+	b.StopTimer()
+
+	ff := flashflood.New(&flashflood.Opts{
+		Timeout:      time.Duration(10 * time.Millisecond),
+		BufferAmount: 3,
+	})
+
+	// ff.GetChan()
+	o := getTestObjs(1)
+
+	b.StartTimer()
+	for i := 0; i < b.N; i++ {
+		// fmt.Println(i)
+		ff.Push(o[0])
+	}
+
+}
+
+func BenchmarkPushChanGate(b *testing.B) {
+	b.StopTimer()
+
+	ff := flashflood.New(&flashflood.Opts{
+		Timeout:       time.Duration(10 * time.Millisecond),
+		BufferAmount:  3,
+		ChannelBuffer: uint64(b.N),
+		GateAmount:    2,
+	})
+
+	ff.GetChan()
+	o := getTestObjs(1)
+	b.StartTimer()
+
+	for i := 0; i < b.N; i++ {
+		// fmt.Println(i)
+		ff.Push(o[0])
+	}
+
+}
+
+func BenchmarkPushChanBigBuffer(b *testing.B) {
+	b.StopTimer()
+
+	ff := flashflood.New(&flashflood.Opts{
+		Timeout:       time.Duration(10 * time.Millisecond),
+		BufferAmount:  512,
+		ChannelBuffer: uint64(b.N),
+	})
+
+	ff.GetChan()
+	o := getTestObjs(1)
+	b.StartTimer()
+
+	for i := 0; i < b.N; i++ {
+		// fmt.Println(i)
+		ff.Push(o[0])
+	}
+
+}
+
+func BenchmarkWithGet(b *testing.B) {
+	b.StopTimer()
+
+	ff := flashflood.New(&flashflood.Opts{
+		Timeout:       time.Duration(10 * time.Millisecond),
+		BufferAmount:  512,
+		ChannelBuffer: uint64(b.N),
+	})
+
+	ff.GetChan()
+	o := getTestObjs(1)
+	b.StartTimer()
+
+	for i := 0; i < b.N; i++ {
+		// fmt.Println(i)
+		ff.Push(o[0])
+		ff.Get(1)
+	}
+
+}
+
+func BenchmarkPushChanBigBufferPow(b *testing.B) {
+	b.StopTimer()
+
+	ff := flashflood.New(&flashflood.Opts{
+		Timeout:       time.Duration(10 * time.Millisecond),
+		BufferAmount:  512,
+		ChannelBuffer: uint64(b.N),
+	})
+
+	ch, _ := ff.GetChan()
+	o := getTestObjs(1)
+	b.StartTimer()
+	for k := 0.; k <= 10; k++ {
+		n := int(math.Pow(2, k))
+
+		b.Run(fmt.Sprintf("pow/%d", n), func(b *testing.B) {
+			go func() {
+				for range ch {
+				}
+			}()
+			for i := 0; i < b.N; i++ {
+				// fmt.Println(i)
+				ff.Push(o[0])
+			}
+
+		})
+	}
+
+}
+
+func BenchmarkPushChanBigBufferPowCBFuncWithGate(b *testing.B) {
+	b.StopTimer()
+
+	ff := flashflood.New(&flashflood.Opts{
+		Timeout:       time.Duration(10 * time.Millisecond),
+		BufferAmount:  512,
+		ChannelBuffer: uint64(b.N),
+		GateAmount:    3,
+	})
+
+	ch, _ := ff.GetChan()
+	ff.AddFunc(ff.FuncMergeChunkedElements())
+	o := getTestObjs(1)
+	b.StartTimer()
+	for k := 0.; k <= 10; k++ {
+		n := int(math.Pow(2, k))
+
+		b.Run(fmt.Sprintf("pow/%d", n), func(b *testing.B) {
+			go func() {
+				for range ch {
+				}
+			}()
+			for i := 0; i < b.N; i++ {
+				// fmt.Println(i)
+				ff.Push(o[0])
+			}
+
+		})
 	}
 
 }
