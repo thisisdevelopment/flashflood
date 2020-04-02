@@ -24,7 +24,7 @@ func TestLargeWithGateAndFuncScenario1(t *testing.T) {
 
 	ff.AddFunc(ff.FuncMergeChunkedElements())
 
-	amount := 1000000
+	amount := 100000
 
 	ch, err := ff.GetChan()
 
@@ -94,7 +94,7 @@ func TestLargeWithGateAndFuncScenario2(t *testing.T) {
 	})
 
 	ff.AddFunc(ff.FuncMergeChunkedElements())
-	amount := 1000000
+	amount := 100000
 
 	objs := getTestObjs(amount)
 	for _, o := range objs {
