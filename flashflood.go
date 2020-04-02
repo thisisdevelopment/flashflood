@@ -7,10 +7,9 @@ package flashflood
 import (
 	"context"
 	"fmt"
+	"log"
 	"sync"
 	"time"
-
-	"github.com/prometheus/common/log"
 )
 
 const (
@@ -100,60 +99,60 @@ func handleOpts(opts *Opts) *Opts {
 }
 
 // Close Cleanup resources and kill timers/tickers etc
-func (ff *FlashFlood) Close() {
+func (i *FlashFlood) Close() {
 
 	// Nuke ticker
-	(*ff.tickerCancel)()
+	(*i.tickerCancel)()
 
-	ff.channelFetched = nil
-	ff.floodChan = nil
+	i.channelFetched = nil
+	i.floodChan = nil
 
-	ff.funcstack = nil
+	i.funcstack = nil
 
-	ff.lastActionMutex = nil
-	ff.opts = nil
+	i.lastActionMutex = nil
+	i.opts = nil
 
-	ff.mutex = nil
+	i.mutex = nil
 
-	if len(ff.buffer) != 0 {
-		log.Warnln("Close called on non empty buffer")
+	if len(i.buffer) != 0 {
+		log.Println("Close called on non empty buffer")
 	}
 
-	ff.buffer = nil
+	i.buffer = nil
 }
 
-func handleTicker(ff *FlashFlood) {
+func handleTicker(i *FlashFlood) {
 	run := true
 
 	for run {
 		select {
-		case <-ff.tickerCtx.Done():
+		case <-i.tickerCtx.Done():
 			run = false
 			break
-		case <-ff.ticker.C:
-			ff.lastActionMutex.Lock()
-			elapsed := time.Since(ff.lastAction)
-			ff.lastActionMutex.Unlock()
+		case <-i.ticker.C:
+			i.lastActionMutex.Lock()
+			elapsed := time.Since(i.lastAction)
+			i.lastActionMutex.Unlock()
 
-			if elapsed > ff.timeout {
-				ff.Drain(true, false)
+			if elapsed > i.timeout {
+				i.Drain(true, false)
 			} else {
-				if ff.flushEnabled {
-					ff.lastFlushMutex.Lock()
-					elapsed = time.Since(ff.lastFlush)
-					ff.lastFlushMutex.Unlock()
+				if i.flushEnabled {
+					i.lastFlushMutex.Lock()
+					elapsed = time.Since(i.lastFlush)
+					i.lastFlushMutex.Unlock()
 
-					if elapsed > ff.flushTimeout {
-						ff.Drain(true, true)
+					if elapsed > i.flushTimeout {
+						i.Drain(true, true)
 					}
 				}
 			}
 		}
 	}
 
-	ff.ticker.Stop()
-	ff.ticker.C = nil
-	ff.ticker = nil
+	i.ticker.Stop()
+	i.ticker.C = nil
+	i.ticker = nil
 
 }
 
