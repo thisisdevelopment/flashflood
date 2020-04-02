@@ -1,6 +1,7 @@
 package flashflood
 
 import (
+	"context"
 	"sync"
 	"time"
 )
@@ -10,10 +11,14 @@ type FuncStack func(objs []interface{}, ff *FlashFlood) []interface{}
 
 //FlashFlood struct
 type FlashFlood struct {
-	buffer          []interface{}
-	bufferAmount    int64
-	mutex           *sync.Mutex
-	ticker          *time.Ticker
+	buffer       []interface{}
+	bufferAmount int64
+	mutex        *sync.Mutex
+
+	tickerCtx    context.Context
+	tickerCancel *context.CancelFunc
+	ticker       *time.Ticker
+
 	floodChan       chan interface{}
 	channelFetched  *ChannelFetchedStatus
 	lastAction      time.Time
@@ -34,6 +39,7 @@ type FlashFlood struct {
 //FF the interface
 type FF interface {
 	AddFunc(f ...FuncStack)
+	Close()
 	Count() uint64
 	Drain(onChannel bool) ([]interface{}, error)
 	FuncMergeBytes() FuncStack

@@ -5,9 +5,12 @@
 package flashflood
 
 import (
+	"context"
 	"fmt"
 	"sync"
 	"time"
+
+	"github.com/prometheus/common/log"
 )
 
 const (
@@ -31,6 +34,8 @@ func New(opts *Opts) *FlashFlood {
 	opts = handleOpts(opts)
 	nfs := NewChannelFetchedStatus()
 
+	tickerCtx, tickerCancel := context.WithCancel(context.Background())
+
 	ff := &FlashFlood{
 		bufferAmount:    opts.BufferAmount,
 		channelFetched:  &nfs,
@@ -45,10 +50,12 @@ func New(opts *Opts) *FlashFlood {
 		lastFlushMutex: &sync.Mutex{},
 		flushEnabled:   opts.FlushEnabled,
 
-		mutex:   &sync.Mutex{},
-		ticker:  time.NewTicker(opts.TickerTime),
-		timeout: opts.Timeout,
-		opts:    opts,
+		mutex:        &sync.Mutex{},
+		tickerCtx:    tickerCtx,
+		tickerCancel: &tickerCancel,
+		ticker:       time.NewTicker(opts.TickerTime),
+		timeout:      opts.Timeout,
+		opts:         opts,
 	}
 
 	if ff.flushEnabled {
@@ -92,9 +99,37 @@ func handleOpts(opts *Opts) *Opts {
 	return opts
 }
 
+// Close Cleanup resources and kill timers/tickers etc
+func (ff *FlashFlood) Close() {
+
+	// Nuke ticker
+	(*ff.tickerCancel)()
+
+	ff.channelFetched = nil
+	ff.floodChan = nil
+
+	ff.funcstack = nil
+
+	ff.lastActionMutex = nil
+	ff.opts = nil
+
+	ff.mutex = nil
+
+	if len(ff.buffer) != 0 {
+		log.Warnln("Close called on non empty buffer")
+	}
+
+	ff.buffer = nil
+}
+
 func handleTicker(ff *FlashFlood) {
-	for {
+	run := true
+
+	for run {
 		select {
+		case <-ff.tickerCtx.Done():
+			run = false
+			break
 		case <-ff.ticker.C:
 			ff.lastActionMutex.Lock()
 			elapsed := time.Since(ff.lastAction)
@@ -115,6 +150,11 @@ func handleTicker(ff *FlashFlood) {
 			}
 		}
 	}
+
+	ff.ticker.Stop()
+	ff.ticker.C = nil
+	ff.ticker = nil
+
 }
 
 func (i *FlashFlood) handleDrainObjs() []interface{} {
