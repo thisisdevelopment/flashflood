@@ -47,6 +47,7 @@ func New(opts *Opts) *FlashFlood {
 		mutex:   &sync.Mutex{},
 		ticker:  time.NewTicker(opts.TickerTime),
 		timeout: opts.Timeout,
+		opts:    opts,
 	}
 
 	if ff.flushEnabled {
@@ -59,12 +60,13 @@ func New(opts *Opts) *FlashFlood {
 
 func handleOpts(opts *Opts) *Opts {
 	defaultOpts := &Opts{
-		BufferAmount:  defaultBufferAmount,
-		ChannelBuffer: defaultChannelBuffer,
-		Debug:         false,
-		GateAmount:    defaultGateAmount,
-		Timeout:       defaultTimeout,
-		TickerTime:    defaultTickerTime,
+		BufferAmount:               defaultBufferAmount,
+		ChannelBuffer:              defaultChannelBuffer,
+		Debug:                      false,
+		GateAmount:                 defaultGateAmount,
+		Timeout:                    defaultTimeout,
+		TickerTime:                 defaultTickerTime,
+		DisableRingUntilChanActive: false,
 	}
 
 	if opts.ChannelBuffer == 0 {
@@ -115,6 +117,9 @@ func handleTicker(ff *FlashFlood) {
 }
 
 func (i *FlashFlood) handleDrainObjs() []interface{} {
+	if i.opts.DisableRingUntilChanActive && !i.channelFetched {
+		return nil
+	}
 
 	var drainObjs []interface{}
 	bl := int64(len(i.buffer))
@@ -137,8 +142,11 @@ func (i *FlashFlood) handleDrainObjs() []interface{} {
 func (i *FlashFlood) Push(objs ...interface{}) error {
 	i.mutex.Lock()
 	i.buffer = append(i.buffer, objs...)
+	// fmt.Println("LEN BUFFER IS", len(i.buffer))
 	drainObjs := i.handleDrainObjs()
-	i.flush2Channel(drainObjs, false, false)
+	if drainObjs != nil {
+		i.flush2Channel(drainObjs, false, false)
+	}
 	i.mutex.Unlock()
 	i.Ping()
 	// TODO err is always nil here, stub to not break bw compatibility in the future
@@ -150,7 +158,9 @@ func (i *FlashFlood) Unshift(objs ...interface{}) error {
 	i.mutex.Lock()
 	i.buffer = append(objs, i.buffer...)
 	drainObjs := i.handleDrainObjs()
-	i.flush2Channel(drainObjs, false, false)
+	if drainObjs != nil {
+		i.flush2Channel(drainObjs, false, false)
+	}
 	i.mutex.Unlock()
 	i.Ping()
 	// TODO err is always nil here, stub to not break bw compatibility in the future

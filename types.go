@@ -28,6 +28,7 @@ type FlashFlood struct {
 	funcstack  []FuncStack
 	gateAmount int64
 	debug      bool
+	opts       *Opts
 }
 
 //FF the interface
@@ -51,6 +52,8 @@ type FF interface {
 type Opts struct {
 	// the amount of the internal buffer, if buffer is full elements will be drained to channel
 	BufferAmount int64
+	//disable Ring functionality until channel is fetched. Beaware Buffer will increase until we can flush it to the channel
+	DisableRingUntilChanActive bool
 	// enable the flush timeout
 	FlushEnabled bool
 	// default time before the buffer flush times out and will start draining its contents to the channel
