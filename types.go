@@ -15,7 +15,7 @@ type FlashFlood struct {
 	mutex           *sync.Mutex
 	ticker          *time.Ticker
 	floodChan       chan interface{}
-	channelFetched  bool
+	channelFetched  *ChannelFetchedStatus
 	lastAction      time.Time
 	lastActionMutex *sync.Mutex
 

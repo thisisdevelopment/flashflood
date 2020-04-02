@@ -29,10 +29,11 @@ const (
 func New(opts *Opts) *FlashFlood {
 
 	opts = handleOpts(opts)
+	nfs := NewChannelFetchedStatus()
 
 	ff := &FlashFlood{
 		bufferAmount:    opts.BufferAmount,
-		channelFetched:  false,
+		channelFetched:  &nfs,
 		debug:           opts.Debug,
 		floodChan:       make(chan interface{}, opts.ChannelBuffer),
 		funcstack:       []FuncStack{debugFunc},
@@ -117,7 +118,7 @@ func handleTicker(ff *FlashFlood) {
 }
 
 func (i *FlashFlood) handleDrainObjs() []interface{} {
-	if i.opts.DisableRingUntilChanActive && !i.channelFetched {
+	if i.opts.DisableRingUntilChanActive && !(*i.channelFetched).IsChannelFetched() {
 		return nil
 	}
 
@@ -171,7 +172,7 @@ func (i *FlashFlood) flush2Channel(objs []interface{}, isInteralBuffer bool, res
 
 	bl := int64(len(objs))
 
-	if bl > 0 && i.channelFetched {
+	if bl > 0 && (*i.channelFetched).IsChannelFetched() {
 
 		if isInteralBuffer {
 
@@ -210,7 +211,7 @@ func (i *FlashFlood) flush2Channel(objs []interface{}, isInteralBuffer bool, res
 
 //GetChan get the overflow channel
 func (i *FlashFlood) GetChan() (<-chan interface{}, error) {
-	i.channelFetched = true
+	(*i.channelFetched).ChannelFetched()
 	// TODO err is always nil here, stub to not break bw compatibility in the future
 	return i.floodChan, nil
 }
