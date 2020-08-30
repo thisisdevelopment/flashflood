@@ -19,16 +19,15 @@ type FlashFlood struct {
 	tickerCancel *context.CancelFunc
 	ticker       *time.Ticker
 
-	floodChan       chan interface{}
-	channelFetched  *ChannelFetchedStatus
-	lastAction      time.Time
-	lastActionMutex *sync.Mutex
+	floodChan      chan interface{}
+	channelFetched *ChannelFetchedStatus
 
-	lastFlush      time.Time
-	lastFlushMutex *sync.Mutex
-	flushTimeout   time.Duration
-	flushEnabled   bool
-	timeout        time.Duration
+	lastAction *sync.Map
+	lastFlush  *sync.Map
+
+	flushTimeout time.Duration
+	flushEnabled bool
+	timeout      time.Duration
 
 	funcstack  []FuncStack
 	gateAmount int64

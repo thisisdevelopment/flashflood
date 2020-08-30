@@ -27,6 +27,11 @@ const (
 	debug = false
 )
 
+const (
+	lastAction = iota
+	lastFlush
+)
+
 //New returns new instance
 func New(opts *Opts) *FlashFlood {
 
@@ -36,18 +41,18 @@ func New(opts *Opts) *FlashFlood {
 	tickerCtx, tickerCancel := context.WithCancel(context.Background())
 
 	ff := &FlashFlood{
-		bufferAmount:    opts.BufferAmount,
-		channelFetched:  &nfs,
-		debug:           opts.Debug,
-		floodChan:       make(chan interface{}, opts.ChannelBuffer),
-		funcstack:       []FuncStack{debugFunc},
-		gateAmount:      opts.GateAmount,
-		lastAction:      time.Now(),
-		lastActionMutex: &sync.Mutex{},
+		bufferAmount:   opts.BufferAmount,
+		channelFetched: &nfs,
+		debug:          opts.Debug,
+		floodChan:      make(chan interface{}, opts.ChannelBuffer),
+		funcstack:      []FuncStack{debugFunc},
+		gateAmount:     opts.GateAmount,
 
-		flushTimeout:   opts.FlushTimeout,
-		lastFlushMutex: &sync.Mutex{},
-		flushEnabled:   opts.FlushEnabled,
+		lastAction: &sync.Map{},
+
+		flushTimeout: opts.FlushTimeout,
+
+		flushEnabled: opts.FlushEnabled,
 
 		mutex:        &sync.Mutex{},
 		tickerCtx:    tickerCtx,
@@ -55,10 +60,13 @@ func New(opts *Opts) *FlashFlood {
 		ticker:       time.NewTicker(opts.TickerTime),
 		timeout:      opts.Timeout,
 		opts:         opts,
+
+		lastFlush: &sync.Map{},
 	}
+	ff.lastAction.Store(lastAction, time.Now())
 
 	if ff.flushEnabled {
-		ff.lastFlush = time.Now()
+		ff.lastFlush.Store(lastFlush, time.Now())
 	}
 
 	go handleTicker(ff)
@@ -108,8 +116,10 @@ func (i *FlashFlood) Close() {
 	i.floodChan = nil
 
 	i.funcstack = nil
+	i.lastAction = nil
 
-	i.lastActionMutex = nil
+	// i.lastActionMutex = nil
+
 	i.opts = nil
 
 	i.mutex = nil
@@ -123,6 +133,7 @@ func (i *FlashFlood) Close() {
 
 func handleTicker(i *FlashFlood) {
 	run := true
+	var elapsed time.Duration
 
 	for run {
 		select {
@@ -130,17 +141,19 @@ func handleTicker(i *FlashFlood) {
 			run = false
 			break
 		case <-i.ticker.C:
-			i.lastActionMutex.Lock()
-			elapsed := time.Since(i.lastAction)
-			i.lastActionMutex.Unlock()
+
+			if e, ok := i.lastAction.Load(lastAction); ok {
+				elapsed = time.Since(e.(time.Time))
+			}
 
 			if elapsed > i.timeout {
 				i.Drain(true, false)
 			} else {
 				if i.flushEnabled {
-					i.lastFlushMutex.Lock()
-					elapsed = time.Since(i.lastFlush)
-					i.lastFlushMutex.Unlock()
+
+					if e, ok := i.lastFlush.Load(lastFlush); ok {
+						elapsed = time.Since(e.(time.Time))
+					}
 
 					if elapsed > i.flushTimeout {
 						i.Drain(true, true)
@@ -196,12 +209,13 @@ func (i *FlashFlood) Push(objs ...interface{}) error {
 //Unshift add objects to the front of buffer
 func (i *FlashFlood) Unshift(objs ...interface{}) error {
 	i.mutex.Lock()
+	defer i.mutex.Unlock()
+
 	i.buffer = append(objs, i.buffer...)
 	drainObjs := i.handleDrainObjs()
 	if drainObjs != nil {
 		i.flush2Channel(drainObjs, false, false)
 	}
-	i.mutex.Unlock()
 	i.Ping()
 	// TODO err is always nil here, stub to not break bw compatibility in the future
 	return nil
@@ -258,23 +272,21 @@ func (i *FlashFlood) GetChan() (<-chan interface{}, error) {
 // Purge clears buffer
 func (i *FlashFlood) Purge() error {
 	i.mutex.Lock()
+	defer i.mutex.Unlock()
 	i.clearBuffer()
-	i.mutex.Unlock()
 	return nil
 }
 
 //Ping updates lastaction to postpone timeout
 func (i *FlashFlood) Ping() {
-	i.lastActionMutex.Lock()
-	i.lastAction = time.Now()
-	i.lastActionMutex.Unlock()
+	i.lastAction.Store(lastAction, time.Now())
 }
 
 //Count returns amount of elements in buffer
 func (i *FlashFlood) Count() uint64 {
 	i.mutex.Lock()
+	defer i.mutex.Unlock()
 	cnt := uint64(len(i.buffer))
-	i.mutex.Unlock()
 	return cnt
 }
 
@@ -329,26 +341,23 @@ func (i *FlashFlood) GetOnChan(amount int) error {
 //Drain drains buffer into channel or as slice (onChannel bool)
 func (i *FlashFlood) Drain(onChannel bool, respectGate bool) ([]interface{}, error) {
 
-	i.lastFlushMutex.Lock()
-	i.lastFlush = time.Now()
-	i.lastFlushMutex.Unlock()
+	i.lastFlush.Store(lastFlush, time.Now())
 
 	i.mutex.Lock()
+	defer i.mutex.Unlock()
+
 	if len(i.buffer) == 0 {
-		i.mutex.Unlock()
 		return nil, nil
 	}
 
 	if onChannel {
 		i.flush2Channel(i.buffer, true, respectGate)
 		i.clearBuffer()
-		i.mutex.Unlock()
 		return nil, nil
 	}
 
 	objs := i.buffer
 	i.clearBuffer()
-	i.mutex.Unlock()
 
 	for _, f := range i.funcstack {
 		objs = f(objs, i)
