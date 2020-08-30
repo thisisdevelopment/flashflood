@@ -2,6 +2,8 @@ package flashflood
 
 import "sync"
 
+const fk = "fetched"
+
 // ChannelFetchedStatus helper to determine if flush channel was fetched by instance
 type ChannelFetchedStatus interface {
 	ChannelFetched()
@@ -10,30 +12,26 @@ type ChannelFetchedStatus interface {
 
 // CFS implementation struct helper to determine if flush channel was fetched by instance
 type CFS struct {
-	mutex   *sync.Mutex
-	fetched bool
+	fetched *sync.Map
 }
 
 // NewChannelFetchedStatus returns new instance
 func NewChannelFetchedStatus() ChannelFetchedStatus {
 	o := &CFS{
-		mutex:   &sync.Mutex{},
-		fetched: false,
+		fetched: &sync.Map{},
 	}
 	return o
 }
 
 // ChannelFetched set the flush channel as fetched
 func (s *CFS) ChannelFetched() {
-	s.mutex.Lock()
-	s.fetched = true
-	s.mutex.Unlock()
+	s.fetched.Store(fk, true)
 }
 
 // IsChannelFetched flush channel is fetched
 func (s *CFS) IsChannelFetched() bool {
-	s.mutex.Lock()
-	r := s.fetched
-	s.mutex.Unlock()
-	return r
+	if _, ok := s.fetched.Load(fk); ok {
+		return true
+	}
+	return false
 }

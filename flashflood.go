@@ -65,8 +65,8 @@ func New(opts *Opts) *FlashFlood {
 	return ff
 }
 
-func handleOpts(opts *Opts) *Opts {
-	defaultOpts := &Opts{
+func handleOpts(opts *Opts) (defaultOpts *Opts) {
+	defaultOpts = &Opts{
 		BufferAmount:               defaultBufferAmount,
 		ChannelBuffer:              defaultChannelBuffer,
 		Debug:                      false,
@@ -366,7 +366,6 @@ func (i *FlashFlood) AddFunc(f FuncStack) {
 }
 
 func debugFunc(i []interface{}, ff *FlashFlood) []interface{} {
-	// fmt.Println("IN DEFAULT FUNC")
 	if ff.debug {
 		fmt.Printf("DEBUG: %#v\n", i)
 	}
