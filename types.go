@@ -16,11 +16,11 @@ type FlashFlood struct {
 	mutex        *sync.Mutex
 
 	tickerCtx    context.Context
-	tickerCancel *context.CancelFunc
+	tickerCancel context.CancelFunc
 	ticker       *time.Ticker
 
 	floodChan      chan interface{}
-	channelFetched *ChannelFetchedStatus
+	channelFetched ChannelFetchedStatus
 
 	lastAction *sync.Map
 	lastFlush  *sync.Map
@@ -37,10 +37,10 @@ type FlashFlood struct {
 
 //FF the interface
 type FF interface {
-	AddFunc(f ...FuncStack)
+	AddFunc(f FuncStack)
 	Close()
 	Count() uint64
-	Drain(onChannel bool) ([]interface{}, error)
+	Drain(onChannel bool, respectGate bool) ([]interface{}, error)
 	FuncMergeBytes() FuncStack
 	FuncMergeChunkedElements() FuncStack
 	FuncReturnIndividualBytes() FuncStack
@@ -51,6 +51,8 @@ type FF interface {
 	Ping()
 	Purge() error
 	Push(objs ...interface{}) error
+	GetBufferAmount() int64
+	GetTimeout() time.Duration
 }
 
 //Opts ...

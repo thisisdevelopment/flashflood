@@ -23,8 +23,6 @@ const (
 	defaultTickerTime = time.Duration(10 * time.Millisecond)
 	// default gate amount, open up the gate is this amount of elements need to be drained. (useful in conjunction with callback functions)
 	defaultGateAmount = int64(1)
-	// debug output of the drain handlers' current elements
-	debug = false
 )
 
 const (
@@ -33,33 +31,28 @@ const (
 )
 
 //New returns new instance
-func New(opts *Opts) *FlashFlood {
+func New(opts *Opts) FF {
 
 	opts = handleOpts(opts)
-	nfs := NewChannelFetchedStatus()
-
+	var nfs = NewChannelFetchedStatus()
 	tickerCtx, tickerCancel := context.WithCancel(context.Background())
 
-	ff := &FlashFlood{
+	var ff = &FlashFlood{
 		bufferAmount:   opts.BufferAmount,
-		channelFetched: &nfs,
+		channelFetched: nfs,
 		debug:          opts.Debug,
 		floodChan:      make(chan interface{}, opts.ChannelBuffer),
 		funcstack:      []FuncStack{debugFunc},
 		gateAmount:     opts.GateAmount,
-
-		lastAction: &sync.Map{},
-
-		flushTimeout: opts.FlushTimeout,
-
-		flushEnabled: opts.FlushEnabled,
-
-		mutex:        &sync.Mutex{},
-		tickerCtx:    tickerCtx,
-		tickerCancel: &tickerCancel,
-		ticker:       time.NewTicker(opts.TickerTime),
-		timeout:      opts.Timeout,
-		opts:         opts,
+		lastAction:     &sync.Map{},
+		flushTimeout:   opts.FlushTimeout,
+		flushEnabled:   opts.FlushEnabled,
+		mutex:          &sync.Mutex{},
+		tickerCtx:      tickerCtx,
+		tickerCancel:   tickerCancel,
+		ticker:         time.NewTicker(opts.TickerTime),
+		timeout:        opts.Timeout,
+		opts:           opts,
 
 		lastFlush: &sync.Map{},
 	}
@@ -110,7 +103,7 @@ func handleOpts(opts *Opts) (defaultOpts *Opts) {
 func (i *FlashFlood) Close() {
 
 	// Nuke ticker
-	(*i.tickerCancel)()
+	i.tickerCancel()
 
 	i.channelFetched = nil
 	i.floodChan = nil
@@ -132,14 +125,12 @@ func (i *FlashFlood) Close() {
 }
 
 func handleTicker(i *FlashFlood) {
-	run := true
 	var elapsed time.Duration
-
-	for run {
+BREAKLOOP:
+	for {
 		select {
 		case <-i.tickerCtx.Done():
-			run = false
-			break
+			break BREAKLOOP
 		case <-i.ticker.C:
 
 			if e, ok := i.lastAction.Load(lastAction); ok {
@@ -170,13 +161,15 @@ func handleTicker(i *FlashFlood) {
 }
 
 func (i *FlashFlood) handleDrainObjs() []interface{} {
-	if i.opts.DisableRingUntilChanActive && !(*i.channelFetched).IsChannelFetched() {
+	if i.opts.DisableRingUntilChanActive && !i.channelFetched.IsChannelFetched() {
 		return nil
 	}
 
-	var drainObjs []interface{}
-	bl := int64(len(i.buffer))
-	toDrain := bl - i.bufferAmount
+	var (
+		drainObjs []interface{}
+		bl        = int64(len(i.buffer))
+		toDrain   = bl - i.bufferAmount
+	)
 
 	if i.gateAmount == 1 {
 		if toDrain > 0 {
@@ -225,7 +218,7 @@ func (i *FlashFlood) flush2Channel(objs []interface{}, isInteralBuffer bool, res
 
 	bl := int64(len(objs))
 
-	if bl > 0 && (*i.channelFetched).IsChannelFetched() {
+	if bl > 0 && i.channelFetched.IsChannelFetched() {
 
 		if isInteralBuffer {
 
@@ -264,7 +257,7 @@ func (i *FlashFlood) flush2Channel(objs []interface{}, isInteralBuffer bool, res
 
 //GetChan get the overflow channel
 func (i *FlashFlood) GetChan() (<-chan interface{}, error) {
-	(*i.channelFetched).ChannelFetched()
+	i.channelFetched.ChannelFetched()
 	// TODO err is always nil here, stub to not break bw compatibility in the future
 	return i.floodChan, nil
 }
@@ -379,4 +372,12 @@ func debugFunc(i []interface{}, ff *FlashFlood) []interface{} {
 		fmt.Printf("DEBUG: %#v\n", i)
 	}
 	return i
+}
+
+func (i *FlashFlood) GetBufferAmount() int64 {
+	return i.bufferAmount
+}
+
+func (i *FlashFlood) GetTimeout() time.Duration {
+	return i.timeout
 }

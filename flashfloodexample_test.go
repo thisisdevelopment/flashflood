@@ -194,14 +194,13 @@ func ExampleFlashFlood_Push_example02() {
 
 	time.Sleep(500 * time.Millisecond)
 
-	run := true
-	for run {
+BREAKLOOP:
+	for {
 		select {
 		case v := <-ch:
 			fmt.Println("RESULT:", v)
 		default:
-			run = false
-			break
+			break BREAKLOOP
 		}
 	}
 
@@ -234,14 +233,13 @@ func ExampleFlashFlood_Push_example03() {
 	_ = err
 	ff.Push(b[0], b[1], b[2], b[3], b[4], b[5])
 
-	run := true
-	for run {
+BREAKLOOP:
+	for {
 		select {
 		case v := <-ch:
 			fmt.Println("RESULT:", v)
 		default:
-			run = false
-			break
+			break BREAKLOOP
 		}
 	}
 
@@ -273,14 +271,13 @@ func ExampleFlashFlood_Push_example04() {
 	ff.Push(b[0], b[1], b[2], b[3], b[4], b[5])
 	time.Sleep(500 * time.Millisecond)
 
-	run := true
-	for run {
+BREAKLOOP:
+	for {
 		select {
 		case v := <-ch:
 			fmt.Println("RESULT:", v)
 		default:
-			run = false
-			break
+			break BREAKLOOP
 		}
 	}
 
@@ -313,14 +310,13 @@ func ExampleFlashFlood_Push_example05() {
 	_ = err
 	ff.Push(b[0], b[1], b[2], b[3], b[4], b[5])
 
-	run := true
-	for run {
+BREAKLOOP:
+	for {
 		select {
 		case v := <-ch:
 			fmt.Println("RESULT:", v)
 		default:
-			run = false
-			break
+			break BREAKLOOP
 		}
 	}
 
@@ -353,14 +349,13 @@ func ExampleFlashFlood_Push_example06() {
 
 	time.Sleep(500 * time.Millisecond)
 
-	run := true
-	for run {
+BREAKLOOP:
+	for {
 		select {
 		case v := <-ch:
 			fmt.Println("RESULT:", v)
 		default:
-			run = false
-			break
+			break BREAKLOOP
 		}
 	}
 
@@ -409,14 +404,13 @@ func ExampleFlashFlood_Push_example07() {
 
 	time.Sleep(500 * time.Millisecond)
 
-	run := true
-	for run {
+BREAKLOOP:
+	for {
 		select {
 		case v := <-ch:
 			fmt.Println("RESULT:", v)
 		default:
-			run = false
-			break
+			break BREAKLOOP
 		}
 	}
 
@@ -571,14 +565,13 @@ func ExampleFlashFlood_Drain_example01() {
 
 	ff.Drain(true, false)
 
-	run := true
-	for run {
+BREAKLOOP:
+	for {
 		select {
 		case v := <-ch:
 			fmt.Println("RESULT:", v)
 		default:
-			run = false
-			break
+			break BREAKLOOP
 		}
 	}
 

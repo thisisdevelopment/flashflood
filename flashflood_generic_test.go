@@ -9,12 +9,12 @@ func TestDefaultOpts(t *testing.T) {
 		BufferAmount: 3,
 	})
 
-	if ff.bufferAmount != 3 {
-		t.Fatalf("expected: %d; got %d", 3, ff.bufferAmount)
+	if ff.GetBufferAmount() != 3 {
+		t.Fatalf("expected: %d; got %d", 3, ff.GetBufferAmount())
 	}
 
-	if ff.timeout != defaultTimeout {
-		t.Fatalf("expected: %v; got %v", defaultTimeout, ff.timeout)
+	if ff.GetTimeout() != defaultTimeout {
+		t.Fatalf("expected: %v; got %v", defaultTimeout, ff.GetTimeout())
 	}
 }
 

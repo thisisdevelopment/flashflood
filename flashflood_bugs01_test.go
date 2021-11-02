@@ -36,33 +36,29 @@ func TestLargeWithGateAndFuncScenario1(t *testing.T) {
 	defer cancel()
 
 	cnt := 0
-	run := true
 
 	wg := &sync.WaitGroup{}
 	wg.Add(amount)
 	errChan := make(chan error)
 
-	go func(run *bool, errChan *chan error) {
-		for *run {
+	go func(errChan *chan error) {
+	BREAKLOOP:
+		for {
 			select {
 
 			case v := <-ch:
-				// spew.Dump(v)
-				// panic(nil)
 				cnt += len(v.([]interface{}))
-				// fmt.Println("LEN IS ", len(v.([]interface{})), cnt)
 				wg.Add(len(v.([]interface{})) * -1)
 
 				if cnt == amount {
-					*run = false
 					close(*errChan)
-					break
+					break BREAKLOOP
 				}
 			case <-ctx.Done():
 				*errChan <- fmt.Errorf("expected: counter of %d ; got counter of %d", amount, cnt)
 			}
 		}
-	}(&run, &errChan)
+	}(&errChan)
 
 	objs := getTestObjs(amount)
 	for _, o := range objs {
@@ -105,8 +101,6 @@ func TestLargeWithGateAndFuncScenario2(t *testing.T) {
 	defer cancel()
 
 	cnt := 0
-	run := true
-
 	wg := &sync.WaitGroup{}
 	wg.Add(amount)
 
@@ -117,8 +111,9 @@ func TestLargeWithGateAndFuncScenario2(t *testing.T) {
 		t.Fatalf("could not get channel: %v", err)
 	}
 
-	go func(run *bool, errChan *chan error) {
-		for *run {
+	go func(errChan *chan error) {
+	BREAKLOOP:
+		for {
 			select {
 
 			case v := <-ch:
@@ -128,15 +123,14 @@ func TestLargeWithGateAndFuncScenario2(t *testing.T) {
 				// fmt.Println("LEN IS ", len(v.([]interface{})), cnt)
 				wg.Add(len(v.([]interface{})) * -1)
 				if cnt == amount {
-					*run = false
 					close(*errChan)
-					break
+					break BREAKLOOP
 				}
 			case <-ctx.Done():
 				*errChan <- fmt.Errorf("expected: counter of %d ; got counter of %d", amount, cnt)
 			}
 		}
-	}(&run, &errChan)
+	}(&errChan)
 
 	select {
 	case chanErr := <-errChan:
@@ -144,6 +138,5 @@ func TestLargeWithGateAndFuncScenario2(t *testing.T) {
 			t.Fatalf(chanErr.Error())
 		}
 	}
-
 	wg.Wait()
 }

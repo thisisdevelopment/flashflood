@@ -293,15 +293,14 @@ func TestDrainOnChannel(t *testing.T) {
 	}
 
 	drained := []TestObj{}
-	run := true
-	for run {
+BREAKLOOP:
+	for {
 		select {
 		case v := <-ch:
 			// fmt.Println("V DRAIN", v)
 			drained = append(drained, v.(TestObj))
 		default:
-			run = false
-			break
+			break BREAKLOOP
 		}
 	}
 
@@ -376,16 +375,15 @@ func TestManyLongTimeout(t *testing.T) {
 
 	time.Sleep(500 * time.Millisecond)
 	drained := []TestObj{}
-	run := true
 
-	for run {
+BREAKLOOP:
+	for {
 		select {
 		case v := <-ch:
 			// fmt.Println("V DRAIN", v)
 			drained = append(drained, v.(TestObj))
 		default:
-			run = false
-			break
+			break BREAKLOOP
 		}
 
 	}
@@ -415,15 +413,14 @@ func TestManyShortTimeout(t *testing.T) {
 
 	time.Sleep(50 * time.Millisecond)
 	drained := []TestObj{}
-	run := true
-	for run {
+BREAKLOOP:
+	for {
 		select {
 		case v := <-ch:
 			// fmt.Println("V DRAIN", v)
 			drained = append(drained, v.(TestObj))
 		default:
-			run = false
-			break
+			break BREAKLOOP
 		}
 
 	}
@@ -559,16 +556,13 @@ func TestGetOnChan(t *testing.T) {
 	ff.GetOnChan(2)
 
 	drained := []TestObj{}
-	run := true
-
-	for run {
+BREAKLOOP:
+	for {
 		select {
 		case v := <-ch:
-			// fmt.Println("V DRAIN", v)
 			drained = append(drained, v.(TestObj))
 		default:
-			run = false
-			break
+			break BREAKLOOP
 		}
 
 	}
@@ -624,15 +618,13 @@ func TestFlushTimeout(t *testing.T) {
 	time.Sleep(100 * time.Millisecond)
 
 	drained := []TestObj{}
-	run := true
-	for run {
+BREAKLOOP:
+	for {
 		select {
 		case v := <-ch:
-			// fmt.Println("V DRAIN", v)
 			drained = append(drained, v.(TestObj))
 		default:
-			run = false
-			break
+			break BREAKLOOP
 		}
 	}
 
@@ -646,15 +638,14 @@ func TestFlushTimeout(t *testing.T) {
 
 	time.Sleep(1500 * time.Millisecond)
 	drained = []TestObj{}
-	run = true
-	for run {
+BREAKLOOP2:
+	for {
 		select {
 		case v := <-ch:
 			// fmt.Println("V DRAIN", v)
 			drained = append(drained, v.(TestObj))
 		default:
-			run = false
-			break
+			break BREAKLOOP2
 		}
 	}
 
