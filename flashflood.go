@@ -112,6 +112,9 @@ func (i *FlashFlood[T]) Close() {
 	(*i.tickerCancel)()
 	i.tickerWg.Wait()
 
+	// Now it's safe to modify fields since ticker goroutine has stopped
+	i.mutex.Lock()
+
 	i.channelFetched = nil
 	i.floodChan = nil
 
@@ -120,13 +123,14 @@ func (i *FlashFlood[T]) Close() {
 
 	i.opts = nil
 
-	i.mutex = nil
-
 	if len(i.buffer) != 0 {
 		log.Println("Close called on non empty buffer")
 	}
 
 	i.buffer = nil
+
+	i.mutex.Unlock()
+	i.mutex = nil
 }
 
 func handleTicker[T any](i *FlashFlood[T]) {
