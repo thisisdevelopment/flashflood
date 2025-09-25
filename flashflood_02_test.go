@@ -3,11 +3,13 @@ package flashflood_test
 import (
 	"testing"
 
-	"github.com/thisisdevelopment/flashflood"
+	"github.com/thisisdevelopment/flashflood/v2"
 )
 
+// TestObj and getTestObjs are defined in flashflood__01_test.go
+
 func TestPushAndDeferClose(t *testing.T) {
-	ff := flashflood.New(&flashflood.Opts{
+	ff := flashflood.New[TestObj](&flashflood.Opts{
 		BufferAmount: 3,
 	})
 	defer ff.Close()
@@ -16,7 +18,7 @@ func TestPushAndDeferClose(t *testing.T) {
 
 	ch, err := ff.GetChan()
 
-	ff.Push(o[0], o[1], o[2], o[3], o[4])
+	_ = ff.Push(o[0], o[1], o[2], o[3], o[4])
 
 	if err != nil {
 		t.Fatalf("could not get channel: %v", err)
@@ -25,28 +27,27 @@ func TestPushAndDeferClose(t *testing.T) {
 	select {
 	case v := <-ch:
 		// fmt.Println("V", v)
-		if v.(TestObj).Key != "k1" || v.(TestObj).Value != "v1" {
+		if v.Key != "k1" || v.Value != "v1" {
 			t.Fatalf("expected: %#v; got %#v", o[0], v)
 		}
 	default:
 		t.Fatalf("expected: %#v; got nothing", o[0])
 	}
 
-	ff.Push(o[4])
+	_ = ff.Push(o[4])
 	select {
 	case v := <-ch:
 		// fmt.Println("V", v)
-		if v.(TestObj).Key != "k2" || v.(TestObj).Value != "v2" {
+		if v.Key != "k2" || v.Value != "v2" {
 			t.Fatalf("expected: %#v; got %#v", o[1], v)
 		}
 	default:
 		t.Fatalf("expected: %#v; got nothing", o[0])
 	}
-
 }
 
 func TestPushAndClose(t *testing.T) {
-	ff := flashflood.New(&flashflood.Opts{
+	ff := flashflood.New[TestObj](&flashflood.Opts{
 		BufferAmount: 3,
 	})
 
@@ -54,7 +55,7 @@ func TestPushAndClose(t *testing.T) {
 
 	ch, err := ff.GetChan()
 
-	ff.Push(o[0], o[1], o[2], o[3], o[4])
+	_ = ff.Push(o[0], o[1], o[2], o[3], o[4])
 
 	if err != nil {
 		t.Fatalf("could not get channel: %v", err)
@@ -63,25 +64,24 @@ func TestPushAndClose(t *testing.T) {
 	select {
 	case v := <-ch:
 		// fmt.Println("V", v)
-		if v.(TestObj).Key != "k1" || v.(TestObj).Value != "v1" {
+		if v.Key != "k1" || v.Value != "v1" {
 			t.Fatalf("expected: %#v; got %#v", o[0], v)
 		}
 	default:
 		t.Fatalf("expected: %#v; got nothing", o[0])
 	}
 
-	ff.Push(o[4])
+	_ = ff.Push(o[4])
 	select {
 	case v := <-ch:
 		// fmt.Println("V", v)
-		if v.(TestObj).Key != "k2" || v.(TestObj).Value != "v2" {
+		if v.Key != "k2" || v.Value != "v2" {
 			t.Fatalf("expected: %#v; got %#v", o[1], v)
 		}
 	default:
 		t.Fatalf("expected: %#v; got nothing", o[0])
 	}
 
-	ff.Drain(false, false)
+	_, _ = ff.Drain(false, false)
 	ff.Close()
-
 }
