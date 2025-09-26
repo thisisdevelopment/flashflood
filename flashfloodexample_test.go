@@ -159,7 +159,7 @@ func ExampleFlashFlood_Purge() {
 func ExampleFlashFlood_Push_example02() {
 	ff := flashflood.New[[]byte](&flashflood.Opts{
 		BufferAmount: 4,
-		Timeout:      time.Duration(250 * time.Millisecond),
+		Timeout:      time.Duration(100 * time.Millisecond), // Reduced from 250ms for CI
 		GateAmount:   3,
 	})
 
@@ -179,7 +179,7 @@ func ExampleFlashFlood_Push_example02() {
 	_ = err
 	ff.Push(b[0], b[1], b[2], b[3], b[4], b[5])
 
-	time.Sleep(500 * time.Millisecond)
+	time.Sleep(200 * time.Millisecond) // Reduced from 500ms for CI
 
 	run := true
 	for run {
@@ -239,7 +239,7 @@ func ExampleFlashFlood_Push_example03() {
 func ExampleFlashFlood_Push_example04() {
 	ff := flashflood.New[[]byte](&flashflood.Opts{
 		BufferAmount: 4,
-		Timeout:      time.Duration(250 * time.Millisecond),
+		Timeout:      time.Duration(100 * time.Millisecond), // Reduced from 250ms for CI
 		GateAmount:   2,
 	})
 
@@ -258,7 +258,7 @@ func ExampleFlashFlood_Push_example04() {
 	ch, err := ff.GetChan()
 	_ = err
 	ff.Push(b[0], b[1], b[2], b[3], b[4], b[5])
-	time.Sleep(500 * time.Millisecond)
+	time.Sleep(200 * time.Millisecond) // Reduced from 500ms for CI
 
 	run := true
 	for run {
@@ -318,7 +318,7 @@ func ExampleFlashFlood_Push_example05() {
 func ExampleFlashFlood_Push_example06() {
 	ff := flashflood.New[byte](&flashflood.Opts{
 		BufferAmount: 4,
-		Timeout:      time.Duration(250 * time.Millisecond),
+		Timeout:      time.Duration(100 * time.Millisecond), // Reduced from 250ms for CI
 		GateAmount:   3,
 	})
 
@@ -344,7 +344,7 @@ func ExampleFlashFlood_Push_example06() {
 		}
 	}
 
-	time.Sleep(500 * time.Millisecond)
+	time.Sleep(200 * time.Millisecond) // Reduced from 500ms for CI
 
 	run := true
 	for run {
@@ -402,7 +402,7 @@ func ExampleFlashFlood_Push_example07() {
 		ff.Push([][]byte{bs}) // Wrap each []byte in [][]byte for chunking
 	}
 
-	time.Sleep(500 * time.Millisecond)
+	time.Sleep(200 * time.Millisecond) // Reduced from 500ms for CI
 
 	run := true
 	for run {

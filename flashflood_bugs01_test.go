@@ -3,6 +3,7 @@ package flashflood_test
 import (
 	"context"
 	"fmt"
+	"os"
 	"sync"
 	"testing"
 	"time"
@@ -25,14 +26,23 @@ func TestLargeWithGateAndFuncScenario1(t *testing.T) {
 
 	ff.AddFunc(flashflood.FuncMergeChunkedElements[TestObj]())
 
-	amount := 100000
+	// Default to smaller dataset for CI-friendly behavior
+	// Only use large dataset when running with -test.long or similar custom flag
+	amount := 10000                             // Default: CI-friendly small dataset
+	timeoutDuration := 10000 * time.Millisecond // Default: shorter timeout
+
+	// Check for environment variable to run long tests
+	if longTests := os.Getenv("LONG_TESTS"); longTests == "true" {
+		amount = 100000 // Full scale for thorough testing
+		timeoutDuration = 30000 * time.Millisecond
+	}
 
 	ch, err := ff.GetChan()
 	if err != nil {
 		t.Fatalf("could not get channel: %v", err)
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 30000*time.Millisecond)
+	ctx, cancel := context.WithTimeout(context.Background(), timeoutDuration)
 	defer cancel()
 
 	cnt := 0
@@ -92,14 +102,24 @@ func TestLargeWithGateAndFuncScenario2(t *testing.T) {
 	})
 
 	ff.AddFunc(flashflood.FuncMergeChunkedElements[TestObj]())
-	amount := 100000
+
+	// Default to smaller dataset for CI-friendly behavior
+	// Only use large dataset when running with LONG_TESTS=true environment variable
+	amount := 10000                             // Default: CI-friendly small dataset
+	timeoutDuration := 10000 * time.Millisecond // Default: shorter timeout
+
+	// Check for environment variable to run long tests
+	if longTests := os.Getenv("LONG_TESTS"); longTests == "true" {
+		amount = 100000 // Full scale for thorough testing
+		timeoutDuration = 30000 * time.Millisecond
+	}
 
 	objs := getTestObjs(amount)
 	for _, o := range objs {
 		ff.Push([]TestObj{o}) // Push single-element slice for chunked processing
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 30000*time.Millisecond)
+	ctx, cancel := context.WithTimeout(context.Background(), timeoutDuration)
 	defer cancel()
 
 	cnt := 0

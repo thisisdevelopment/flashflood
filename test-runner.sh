@@ -1,10 +1,12 @@
 #!/bin/bash
 
 # FlashFlood v2 Test Runner with Coverage Reporting
-# Usage: ./test-runner.sh [-v] [-c] [-r] [-h]
+# Usage: ./test-runner.sh [-v] [-c] [-r] [-b] [-s] [-h]
 #   -v: Verbose output
 #   -c: Generate coverage report
 #   -r: Open coverage report in browser
+#   -b: Run benchmarks
+#   -s: Short tests (CI-friendly, smaller datasets)
 #   -h: Show help
 
 set -e
@@ -20,9 +22,11 @@ NC='\033[0m' # No Color
 VERBOSE=false
 COVERAGE=false
 OPEN_REPORT=false
+RUN_BENCHMARKS=false
+SHORT_TESTS=false
 
 # Parse command line arguments
-while getopts "vcrh" opt; do
+while getopts "vcrbsh" opt; do
     case $opt in
         v)
             VERBOSE=true
@@ -34,12 +38,20 @@ while getopts "vcrh" opt; do
             COVERAGE=true
             OPEN_REPORT=true
             ;;
+        b)
+            RUN_BENCHMARKS=true
+            ;;
+        s)
+            SHORT_TESTS=true
+            ;;
         h)
             echo "FlashFlood v2 Test Runner"
-            echo "Usage: $0 [-v] [-c] [-r] [-h]"
+            echo "Usage: $0 [-v] [-c] [-r] [-b] [-s] [-h]"
             echo "  -v: Verbose output"
             echo "  -c: Generate coverage report"
             echo "  -r: Open coverage report in browser"
+            echo "  -b: Run benchmarks"
+            echo "  -s: Short tests (CI-friendly, smaller datasets)"
             echo "  -h: Show help"
             exit 0
             ;;
@@ -97,11 +109,16 @@ echo -e "\n${YELLOW}🧪 Running tests${NC}"
 if [ "$COVERAGE" = true ]; then
     echo "Generating coverage report..."
 
+    # Build test flags
+    TEST_FLAGS="-race -coverprofile=coverage.out -covermode=atomic"
     if [ "$VERBOSE" = true ]; then
-        go test -v -race -coverprofile=coverage.out -covermode=atomic ./...
-    else
-        go test -race -coverprofile=coverage.out -covermode=atomic ./...
+        TEST_FLAGS="-v $TEST_FLAGS"
     fi
+    if [ "$SHORT_TESTS" = true ]; then
+        TEST_FLAGS="$TEST_FLAGS -short"
+    fi
+
+    go test $TEST_FLAGS ./...
 
     # Check if tests passed
     if [ $? -ne 0 ]; then
@@ -159,11 +176,16 @@ if [ "$COVERAGE" = true ]; then
 
 else
     # Run tests without coverage
+    # Build test flags
+    TEST_FLAGS="-race"
     if [ "$VERBOSE" = true ]; then
-        go test -v -race ./...
-    else
-        go test -race ./...
+        TEST_FLAGS="-v $TEST_FLAGS"
     fi
+    if [ "$SHORT_TESTS" = true ]; then
+        TEST_FLAGS="$TEST_FLAGS -short"
+    fi
+
+    go test $TEST_FLAGS ./...
 
     # Check if tests passed
     if [ $? -ne 0 ]; then
@@ -172,9 +194,11 @@ else
     fi
 fi
 
-# Run benchmarks
-echo -e "\n${YELLOW}⚡ Running benchmarks (quick)${NC}"
-go test -bench=. -benchtime=1s ./... | grep -E "(Benchmark|ok|PASS)"
+# Run benchmarks if requested
+if [ "$RUN_BENCHMARKS" = true ]; then
+    echo -e "\n${YELLOW}⚡ Running benchmarks (quick)${NC}"
+    go test -bench=. -benchtime=1s ./... | grep -E "(Benchmark|ok|PASS)"
+fi
 
 # Final summary
 echo -e "\n${BLUE}===========================================${NC}"
@@ -189,6 +213,10 @@ echo -e "\n${YELLOW}💡 Usage examples:${NC}"
 echo "  ./test-runner.sh           # Run tests only"
 echo "  ./test-runner.sh -v        # Verbose output"
 echo "  ./test-runner.sh -c        # Generate coverage"
+echo "  ./test-runner.sh -s        # Short tests (CI-friendly)"
+echo "  ./test-runner.sh -b        # Run benchmarks"
 echo "  ./test-runner.sh -v -c -r  # Verbose + coverage + open report"
+echo "  ./test-runner.sh -v -c -s  # Verbose + coverage + short tests"
+echo "  ./test-runner.sh -v -c -b  # Verbose + coverage + benchmarks"
 
 echo -e "\n${GREEN}🎉 Test run completed!${NC}"

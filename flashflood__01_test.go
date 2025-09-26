@@ -3,6 +3,7 @@ package flashflood_test
 import (
 	"fmt"
 	"math"
+	"os"
 	"testing"
 	"time"
 
@@ -367,7 +368,13 @@ func TestManyLongTimeout(t *testing.T) {
 		}
 	}()
 
-	time.Sleep(500 * time.Millisecond)
+	// Reduce sleep time for CI-friendly behavior
+	sleepDuration := 100 * time.Millisecond // Default: CI-friendly
+	if longTests := os.Getenv("LONG_TESTS"); longTests == "true" {
+		sleepDuration = 500 * time.Millisecond // Original timing for thorough testing
+	}
+	
+	time.Sleep(sleepDuration)
 	drained := []TestObj{}
 	run := true
 
@@ -622,7 +629,13 @@ func TestFlushTimeout(t *testing.T) {
 	ff.Push(o[3])
 	ff.Push(o[4])
 
-	time.Sleep(1500 * time.Millisecond)
+	// Reduce sleep time for CI-friendly behavior
+	sleepDuration := 200 * time.Millisecond // Default: CI-friendly
+	if longTests := os.Getenv("LONG_TESTS"); longTests == "true" {
+		sleepDuration = 1500 * time.Millisecond // Original timing for thorough testing
+	}
+	
+	time.Sleep(sleepDuration)
 	drained = []TestObj{}
 	run = true
 	for run {

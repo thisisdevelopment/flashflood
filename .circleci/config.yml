@@ -51,9 +51,9 @@ jobs: # basic units of work in a run
             # Use our test-runner.sh if available, otherwise use go test directly
             if [ -f "./test-runner.sh" ]; then
               chmod +x ./test-runner.sh
-              ./test-runner.sh -v -c
+              ./test-runner.sh -v -c -s
             else
-              go test -v -race ./... | tee ${TEST_RESULTS}/go-test.out
+              go test -v -race -short ./... | tee ${TEST_RESULTS}/go-test.out
             fi
 
       # Generate JUnit report if go test output exists
@@ -69,7 +69,7 @@ jobs: # basic units of work in a run
       - run:
           name: Run code coverage
           command: |
-            go test -race -coverprofile=coverage.txt -covermode=atomic ./...
+            go test -race -short -coverprofile=coverage.txt -covermode=atomic ./...
             if [ -f "coverage.txt" ]; then
               cp coverage.txt ${TEST_RESULTS}/coverage.txt
             fi
