@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/thisisdevelopment/flashflood"
+	"github.com/thisisdevelopment/flashflood/v2"
 )
 
 type TestObj struct {
@@ -14,8 +14,19 @@ type TestObj struct {
 	Value string
 }
 
+func getTestObjs(amount int) []TestObj {
+	r := []TestObj{}
+	for i := 1; i <= amount; i++ {
+		key := fmt.Sprintf("k%d", i)
+		value := fmt.Sprintf("v%d", i)
+		t := TestObj{key, value}
+		r = append(r, t)
+	}
+	return r
+}
+
 func TestPush(t *testing.T) {
-	ff := flashflood.New(&flashflood.Opts{
+	ff := flashflood.New[TestObj](&flashflood.Opts{
 		BufferAmount: 3,
 	})
 	o := getTestObjs(5)
@@ -31,7 +42,7 @@ func TestPush(t *testing.T) {
 	select {
 	case v := <-ch:
 		// fmt.Println("V", v)
-		if v.(TestObj).Key != "k1" || v.(TestObj).Value != "v1" {
+		if v.Key != "k1" || v.Value != "v1" {
 			t.Fatalf("expected: %#v; got %#v", o[0], v)
 		}
 	default:
@@ -42,25 +53,24 @@ func TestPush(t *testing.T) {
 	select {
 	case v := <-ch:
 		// fmt.Println("V", v)
-		if v.(TestObj).Key != "k2" || v.(TestObj).Value != "v2" {
+		if v.Key != "k2" || v.Value != "v2" {
 			t.Fatalf("expected: %#v; got %#v", o[1], v)
 		}
 	default:
 		t.Fatalf("expected: %#v; got nothing", o[0])
 	}
-
 }
 
 func BenchmarkPushChan(b *testing.B) {
 	b.StopTimer()
 
-	ff := flashflood.New(&flashflood.Opts{
-		Timeout:       time.Duration(10 * time.Millisecond),
+	ff := flashflood.New[TestObj](&flashflood.Opts{
+		Timeout:       10 * time.Millisecond,
 		BufferAmount:  3,
 		ChannelBuffer: uint64(b.N),
 	})
 
-	ff.GetChan()
+	_, _ = ff.GetChan()
 	o := getTestObjs(1)
 	b.StartTimer()
 
@@ -68,15 +78,13 @@ func BenchmarkPushChan(b *testing.B) {
 		// fmt.Println(i)
 		ff.Push(o[0])
 	}
-
 }
 
 func BenchmarkPushNoChan(b *testing.B) {
-
 	b.StopTimer()
 
-	ff := flashflood.New(&flashflood.Opts{
-		Timeout:      time.Duration(10 * time.Millisecond),
+	ff := flashflood.New[TestObj](&flashflood.Opts{
+		Timeout:      10 * time.Millisecond,
 		BufferAmount: 3,
 	})
 
@@ -88,20 +96,19 @@ func BenchmarkPushNoChan(b *testing.B) {
 		// fmt.Println(i)
 		ff.Push(o[0])
 	}
-
 }
 
 func BenchmarkPushChanGate(b *testing.B) {
 	b.StopTimer()
 
-	ff := flashflood.New(&flashflood.Opts{
-		Timeout:       time.Duration(10 * time.Millisecond),
+	ff := flashflood.New[TestObj](&flashflood.Opts{
+		Timeout:       10 * time.Millisecond,
 		BufferAmount:  3,
 		ChannelBuffer: uint64(b.N),
 		GateAmount:    2,
 	})
 
-	ff.GetChan()
+	_, _ = ff.GetChan()
 	o := getTestObjs(1)
 	b.StartTimer()
 
@@ -109,19 +116,18 @@ func BenchmarkPushChanGate(b *testing.B) {
 		// fmt.Println(i)
 		ff.Push(o[0])
 	}
-
 }
 
 func BenchmarkPushChanBigBuffer(b *testing.B) {
 	b.StopTimer()
 
-	ff := flashflood.New(&flashflood.Opts{
-		Timeout:       time.Duration(10 * time.Millisecond),
+	ff := flashflood.New[TestObj](&flashflood.Opts{
+		Timeout:       10 * time.Millisecond,
 		BufferAmount:  512,
 		ChannelBuffer: uint64(b.N),
 	})
 
-	ff.GetChan()
+	_, _ = ff.GetChan()
 	o := getTestObjs(1)
 	b.StartTimer()
 
@@ -129,35 +135,33 @@ func BenchmarkPushChanBigBuffer(b *testing.B) {
 		// fmt.Println(i)
 		ff.Push(o[0])
 	}
-
 }
 
 func BenchmarkWithGet(b *testing.B) {
 	b.StopTimer()
 
-	ff := flashflood.New(&flashflood.Opts{
-		Timeout:       time.Duration(10 * time.Millisecond),
+	ff := flashflood.New[TestObj](&flashflood.Opts{
+		Timeout:       10 * time.Millisecond,
 		BufferAmount:  512,
 		ChannelBuffer: uint64(b.N),
 	})
 
-	ff.GetChan()
+	_, _ = ff.GetChan()
 	o := getTestObjs(1)
 	b.StartTimer()
 
 	for i := 0; i < b.N; i++ {
 		// fmt.Println(i)
 		ff.Push(o[0])
-		ff.Get(1)
+		_, _ = ff.Get(1)
 	}
-
 }
 
 func BenchmarkPushChanBigBufferPow(b *testing.B) {
 	b.StopTimer()
 
-	ff := flashflood.New(&flashflood.Opts{
-		Timeout:       time.Duration(10 * time.Millisecond),
+	ff := flashflood.New[TestObj](&flashflood.Opts{
+		Timeout:       10 * time.Millisecond,
 		BufferAmount:  512,
 		ChannelBuffer: uint64(b.N),
 	})
@@ -177,24 +181,22 @@ func BenchmarkPushChanBigBufferPow(b *testing.B) {
 				// fmt.Println(i)
 				ff.Push(o[0])
 			}
-
 		})
 	}
-
 }
 
 func BenchmarkPushChanBigBufferPowCBFuncWithGate(b *testing.B) {
 	b.StopTimer()
 
-	ff := flashflood.New(&flashflood.Opts{
-		Timeout:       time.Duration(10 * time.Millisecond),
+	ff := flashflood.New[TestObj](&flashflood.Opts{
+		Timeout:       10 * time.Millisecond,
 		BufferAmount:  512,
 		ChannelBuffer: uint64(b.N),
 		GateAmount:    3,
 	})
 
 	ch, _ := ff.GetChan()
-	ff.AddFunc(ff.FuncMergeChunkedElements())
+	// Removed FuncMergeChunkedElements - deprecated in v2
 	o := getTestObjs(1)
 	b.StartTimer()
 	for k := 0.; k <= 10; k++ {
@@ -209,14 +211,12 @@ func BenchmarkPushChanBigBufferPowCBFuncWithGate(b *testing.B) {
 				// fmt.Println(i)
 				ff.Push(o[0])
 			}
-
 		})
 	}
-
 }
 
 func TestPushDefaultOpts(t *testing.T) {
-	ff := flashflood.New(&flashflood.Opts{})
+	ff := flashflood.New[TestObj](&flashflood.Opts{})
 	ch, err := ff.GetChan()
 
 	for _, t := range getTestObjs(512) {
@@ -227,19 +227,18 @@ func TestPushDefaultOpts(t *testing.T) {
 		t.Fatalf("could not get channel: %v", err)
 	}
 	for i := 1; i <= 512; i++ {
-		select {
-		case v := <-ch:
-			// fmt.Println("V", v)
-			key := fmt.Sprintf("k%d", i)
-			value := fmt.Sprintf("v%d", i)
-			if v.(TestObj).Key != key || v.(TestObj).Value != value {
-				t.Fatalf("expected: %s %s; got %#v", key, value, v)
-			}
+		v := <-ch
+		// fmt.Println("V", v)
+		key := fmt.Sprintf("k%d", i)
+		value := fmt.Sprintf("v%d", i)
+		if v.Key != key || v.Value != value {
+			t.Fatalf("expected: %s %s; got %#v", key, value, v)
 		}
 	}
 }
+
 func TestPushDefaultOptsWithGate(t *testing.T) {
-	ff := flashflood.New(&flashflood.Opts{
+	ff := flashflood.New[TestObj](&flashflood.Opts{
 		GateAmount: 8,
 	})
 	ch, err := ff.GetChan()
@@ -255,22 +254,19 @@ func TestPushDefaultOptsWithGate(t *testing.T) {
 		t.Fatalf("could not get channel: %v", err)
 	}
 	for i := 0; i < 512; i++ {
-		select {
-		case v := <-ch:
-			key := fmt.Sprintf("k%d", i)
-			value := fmt.Sprintf("v%d", i)
-			if v.(TestObj).Key != key || v.(TestObj).Value != value {
-				t.Fatalf("expected: %s %s; got %#v", key, value, v)
-			}
+		v := <-ch
+		key := fmt.Sprintf("k%d", i)
+		value := fmt.Sprintf("v%d", i)
+		if v.Key != key || v.Value != value {
+			t.Fatalf("expected: %s %s; got %#v", key, value, v)
 		}
 	}
 }
 
 func TestDrainOnChannel(t *testing.T) {
-
-	ff := flashflood.New(&flashflood.Opts{
+	ff := flashflood.New[TestObj](&flashflood.Opts{
 		BufferAmount: 3,
-		Timeout:      time.Duration(250 * time.Millisecond),
+		Timeout:      250 * time.Millisecond,
 	})
 
 	o := getTestObjs(4)
@@ -286,7 +282,7 @@ func TestDrainOnChannel(t *testing.T) {
 		t.Fatalf("expected 3 in buffer; got %v", ff.Count())
 	}
 
-	ff.Drain(true, false)
+	_, _ = ff.Drain(true, false)
 
 	if ff.Count() != 0 {
 		t.Fatalf("expected 0 in buffer; got %v", ff.Count())
@@ -298,10 +294,9 @@ func TestDrainOnChannel(t *testing.T) {
 		select {
 		case v := <-ch:
 			// fmt.Println("V DRAIN", v)
-			drained = append(drained, v.(TestObj))
+			drained = append(drained, v)
 		default:
 			run = false
-			break
 		}
 	}
 
@@ -317,13 +312,12 @@ func TestDrainOnChannel(t *testing.T) {
 	if drained[3].Key != "k4" || drained[3].Value != "v4" {
 		t.Fatalf("expected: %#v; got %#v", o[3], drained[3])
 	}
-
 }
-func TestDrainWithReturn(t *testing.T) {
 
-	ff := flashflood.New(&flashflood.Opts{
+func TestDrainWithReturn(t *testing.T) {
+	ff := flashflood.New[TestObj](&flashflood.Opts{
 		BufferAmount: 3,
-		Timeout:      time.Duration(250 * time.Millisecond),
+		Timeout:      250 * time.Millisecond,
 	})
 	o := getTestObjs(4)
 
@@ -342,24 +336,23 @@ func TestDrainWithReturn(t *testing.T) {
 		t.Fatalf("expected 0 in buffer; got %v", ff.Count())
 	}
 
-	if drained[0].(TestObj).Key != "k2" || drained[0].(TestObj).Value != "v2" {
+	if drained[0].Key != "k2" || drained[0].Value != "v2" {
 		t.Fatalf("expected: %#v; got %#v", o[1], drained[0])
 	}
-	if drained[1].(TestObj).Key != "k3" || drained[1].(TestObj).Value != "v3" {
+	if drained[1].Key != "k3" || drained[1].Value != "v3" {
 		t.Fatalf("expected: %#v; got %#v", o[2], drained[1])
 	}
-	if drained[2].(TestObj).Key != "k4" || drained[2].(TestObj).Value != "v4" {
+	if drained[2].Key != "k4" || drained[2].Value != "v4" {
 		t.Fatalf("expected: %#v; got %#v", o[3], drained[2])
 	}
-
 }
 
 func TestManyLongTimeout(t *testing.T) {
-	max := 100
+	maxValue := 100
 	bufferAmount := int64(3)
-	ff := flashflood.New(&flashflood.Opts{
+	ff := flashflood.New[TestObj](&flashflood.Opts{
 		BufferAmount: bufferAmount,
-		Timeout:      time.Duration(1 * time.Second),
+		Timeout:      1 * time.Second,
 		// TickerTime:   time.Duration(2 * time.Second),
 	})
 
@@ -369,7 +362,7 @@ func TestManyLongTimeout(t *testing.T) {
 	}
 
 	go func() {
-		for _, t := range getTestObjs(max) {
+		for _, t := range getTestObjs(maxValue) {
 			ff.Push(t)
 		}
 	}()
@@ -382,25 +375,22 @@ func TestManyLongTimeout(t *testing.T) {
 		select {
 		case v := <-ch:
 			// fmt.Println("V DRAIN", v)
-			drained = append(drained, v.(TestObj))
+			drained = append(drained, v)
 		default:
 			run = false
-			break
 		}
-
 	}
 
-	if int64(len(drained)) != int64(max)-bufferAmount {
-		t.Fatalf("expected %d in buffer; got %v", int64(max)-bufferAmount, len(drained))
+	if int64(len(drained)) != int64(maxValue)-bufferAmount {
+		t.Fatalf("expected %d in buffer; got %v", int64(maxValue)-bufferAmount, len(drained))
 	}
-
 }
 
 func TestManyShortTimeout(t *testing.T) {
-	max := 100
+	maxValue := 100
 
 	bufferAmount := int64(3)
-	ff := flashflood.New(&flashflood.Opts{
+	ff := flashflood.New[TestObj](&flashflood.Opts{
 		BufferAmount: bufferAmount,
 	})
 
@@ -408,7 +398,7 @@ func TestManyShortTimeout(t *testing.T) {
 	_ = err
 
 	go func() {
-		for _, t := range getTestObjs(max) {
+		for _, t := range getTestObjs(maxValue) {
 			ff.Push(t)
 		}
 	}()
@@ -420,25 +410,21 @@ func TestManyShortTimeout(t *testing.T) {
 		select {
 		case v := <-ch:
 			// fmt.Println("V DRAIN", v)
-			drained = append(drained, v.(TestObj))
+			drained = append(drained, v)
 		default:
 			run = false
-			break
 		}
-
 	}
 
-	if int64(len(drained)) != int64(max)-bufferAmount {
-		t.Fatalf("expected %d in buffer; got %v", int64(max)-bufferAmount, len(drained))
+	if int64(len(drained)) != int64(maxValue)-bufferAmount {
+		t.Fatalf("expected %d in buffer; got %v", int64(maxValue)-bufferAmount, len(drained))
 	}
-
 }
 
 func TestPurge(t *testing.T) {
-
-	ff := flashflood.New(&flashflood.Opts{
+	ff := flashflood.New[TestObj](&flashflood.Opts{
 		BufferAmount: 3,
-		Timeout:      time.Duration(250 * time.Millisecond),
+		Timeout:      250 * time.Millisecond,
 	})
 
 	o := getTestObjs(4)
@@ -454,20 +440,18 @@ func TestPurge(t *testing.T) {
 		t.Fatalf("expected 3 in buffer; got %v", ff.Count())
 	}
 
-	ff.Purge()
+	_ = ff.Purge()
 	// ff.Drain(true)
 
 	if ff.Count() != 0 {
 		t.Fatalf("expected 0 in buffer; got %v", ff.Count())
 	}
-
 }
 
 func TestGet(t *testing.T) {
-
-	ff := flashflood.New(&flashflood.Opts{
+	ff := flashflood.New[TestObj](&flashflood.Opts{
 		BufferAmount: 3,
-		Timeout:      time.Duration(250 * time.Millisecond),
+		Timeout:      250 * time.Millisecond,
 	})
 	o := getTestObjs(4)
 
@@ -478,29 +462,26 @@ func TestGet(t *testing.T) {
 	}
 
 	drained, err := ff.Get(2)
-
 	if err != nil {
 		t.Fatalf("could not drain object: %v", err)
 	}
 
-	if drained[0].(TestObj).Key != "k2" || drained[0].(TestObj).Value != "v2" {
+	if drained[0].Key != "k2" || drained[0].Value != "v2" {
 		t.Fatalf("expected: %#v; got %#v", o[1], drained[0])
 	}
-	if drained[1].(TestObj).Key != "k3" || drained[1].(TestObj).Value != "v3" {
+	if drained[1].Key != "k3" || drained[1].Value != "v3" {
 		t.Fatalf("expected: %#v; got %#v", o[2], drained[1])
 	}
 
 	if ff.Count() != 1 {
 		t.Fatalf("expected 1 in buffer; got %v", ff.Count())
 	}
-
 }
 
 func TestGetWithFunc(t *testing.T) {
-
-	ff := flashflood.New(&flashflood.Opts{
+	ff := flashflood.New[TestObj](&flashflood.Opts{
 		BufferAmount: 3,
-		Timeout:      time.Duration(250 * time.Millisecond),
+		Timeout:      250 * time.Millisecond,
 	})
 	o := getTestObjs(4)
 
@@ -510,10 +491,15 @@ func TestGetWithFunc(t *testing.T) {
 		t.Fatalf("expected 3 in buffer; got %v", ff.Count())
 	}
 
-	f1 := func(objs []interface{}, ff *flashflood.FlashFlood) []interface{} {
-		var c []interface{}
+	f1 := func(objs []TestObj, _ *flashflood.FlashFlood[TestObj]) []TestObj {
+		var c []TestObj
 		for _, v := range objs {
-			c = append(c, fmt.Sprintf("---%s_%s", v.(TestObj).Key, v.(TestObj).Value))
+			// Transform the string representation into a new TestObj
+			transformed := TestObj{
+				Key:   fmt.Sprintf("---%s", v.Key),
+				Value: fmt.Sprintf("---%s", v.Value),
+			}
+			c = append(c, transformed)
 		}
 		return c
 	}
@@ -521,29 +507,26 @@ func TestGetWithFunc(t *testing.T) {
 	ff.AddFunc(f1)
 
 	drained, err := ff.Get(2)
-
 	if err != nil {
 		t.Fatalf("could not drain object: %v", err)
 	}
 
-	if drained[0].(string) != "---k2_v2" {
-		t.Fatalf("expected: %#v; got %#v", "---k2_v2", drained[0])
+	if drained[0].Key != "---k2" || drained[0].Value != "---v2" {
+		t.Fatalf("expected: TestObj{Key: '---k2', Value: '---v2'}; got %#v", drained[0])
 	}
-	if drained[1].(string) != "---k3_v3" {
-		t.Fatalf("expected: %#v; got %#v", "---k3_v3", drained[1])
+	if drained[1].Key != "---k3" || drained[1].Value != "---v3" {
+		t.Fatalf("expected: TestObj{Key: '---k3', Value: '---v3'}; got %#v", drained[1])
 	}
 
 	if ff.Count() != 1 {
 		t.Fatalf("expected 1 in buffer; got %v", ff.Count())
 	}
-
 }
 
 func TestGetOnChan(t *testing.T) {
-
-	ff := flashflood.New(&flashflood.Opts{
+	ff := flashflood.New[TestObj](&flashflood.Opts{
 		BufferAmount: 3,
-		Timeout:      time.Duration(250 * time.Millisecond),
+		Timeout:      250 * time.Millisecond,
 	})
 
 	ch, _ := ff.GetChan()
@@ -556,7 +539,7 @@ func TestGetOnChan(t *testing.T) {
 		t.Fatalf("expected 3 in buffer; got %v", ff.Count())
 	}
 
-	ff.GetOnChan(2)
+	_ = ff.GetOnChan(2)
 
 	drained := []TestObj{}
 	run := true
@@ -565,12 +548,10 @@ func TestGetOnChan(t *testing.T) {
 		select {
 		case v := <-ch:
 			// fmt.Println("V DRAIN", v)
-			drained = append(drained, v.(TestObj))
+			drained = append(drained, v)
 		default:
 			run = false
-			break
 		}
-
 	}
 
 	if drained[0].Key != "k1" || drained[0].Value != "v1" {
@@ -589,7 +570,7 @@ func TestGetOnChan(t *testing.T) {
 	// Clear out buffer, and to hit code to test
 	rest, _ := ff.Get(10)
 
-	if rest[0].(TestObj).Key != "k4" || rest[0].(TestObj).Value != "v4" {
+	if rest[0].Key != "k4" || rest[0].Value != "v4" {
 		t.Fatalf("expected: %#v; got %#v", o[3], rest[0])
 	}
 
@@ -597,21 +578,19 @@ func TestGetOnChan(t *testing.T) {
 	if rest != nil {
 		t.Fatalf("expected rest to be nil; got %#v", rest)
 	}
-
 }
 
 func TestFlushTimeout(t *testing.T) {
-	ff := flashflood.New(&flashflood.Opts{
+	ff := flashflood.New[TestObj](&flashflood.Opts{
 		BufferAmount: 4,
 		GateAmount:   2,
-		Timeout:      time.Duration(1 * time.Second),
-		TickerTime:   time.Duration(5 * time.Millisecond),
+		Timeout:      1 * time.Second,
+		TickerTime:   5 * time.Millisecond,
 		FlushEnabled: true,
-		FlushTimeout: time.Duration(50 * time.Millisecond),
+		FlushTimeout: 50 * time.Millisecond,
 	})
 
 	ch, err := ff.GetChan()
-
 	if err != nil {
 		t.Fatalf("could not get channel: %v", err)
 	}
@@ -629,10 +608,9 @@ func TestFlushTimeout(t *testing.T) {
 		select {
 		case v := <-ch:
 			// fmt.Println("V DRAIN", v)
-			drained = append(drained, v.(TestObj))
+			drained = append(drained, v)
 		default:
 			run = false
-			break
 		}
 	}
 
@@ -651,10 +629,9 @@ func TestFlushTimeout(t *testing.T) {
 		select {
 		case v := <-ch:
 			// fmt.Println("V DRAIN", v)
-			drained = append(drained, v.(TestObj))
+			drained = append(drained, v)
 		default:
 			run = false
-			break
 		}
 	}
 
@@ -662,5 +639,4 @@ func TestFlushTimeout(t *testing.T) {
 	if int64(len(drained)) != 3 {
 		t.Fatalf("(2) expected %d in buffer; got %v", 3, len(drained))
 	}
-
 }

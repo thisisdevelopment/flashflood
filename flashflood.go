@@ -1,7 +1,7 @@
 // Package flashflood is a ringbuffer on steroids.
 //
-//The buffer is a traditional ring buffer but has features to receive the flushed out elements on a channel.
-//You can set the gate amount in order to group elements flushed out and/or perform transformations on them using FuncStack callbacks
+// The buffer is a traditional ring buffer but has features to receive the flushed out elements on a channel.
+// You can set the gate amount in order to group elements flushed out and/or perform transformations on them using FuncStack callbacks
 package flashflood
 
 import (
@@ -18,13 +18,11 @@ const (
 	// the amount of the internal buffer, if buffer is full elements will be drained to channel
 	defaultBufferAmount = 256
 	// default time before the buffer times out and will start draining its contents to the channel
-	defaultTimeout = time.Duration(100 * time.Millisecond)
+	defaultTimeout = 100 * time.Millisecond
 	// default ticker time the buffer will check for activity (see defaultTimeout )
-	defaultTickerTime = time.Duration(10 * time.Millisecond)
+	defaultTickerTime = 10 * time.Millisecond
 	// default gate amount, open up the gate is this amount of elements need to be drained. (useful in conjunction with callback functions)
 	defaultGateAmount = int64(1)
-	// debug output of the drain handlers' current elements
-	debug = false
 )
 
 const (
@@ -32,20 +30,20 @@ const (
 	lastFlush
 )
 
-//New returns new instance
-func New(opts *Opts) *FlashFlood {
-
+// New returns new instance with generic type parameter
+func New[T any](opts *Opts) *FlashFlood[T] {
 	opts = handleOpts(opts)
 	nfs := NewChannelFetchedStatus()
 
 	tickerCtx, tickerCancel := context.WithCancel(context.Background())
+	var tickerWg sync.WaitGroup
 
-	ff := &FlashFlood{
+	ff := &FlashFlood[T]{
 		bufferAmount:   opts.BufferAmount,
 		channelFetched: &nfs,
 		debug:          opts.Debug,
-		floodChan:      make(chan interface{}, opts.ChannelBuffer),
-		funcstack:      []FuncStack{debugFunc},
+		floodChan:      make(chan T, opts.ChannelBuffer),
+		funcstack:      []FuncStack[T]{debugFunc[T]},
 		gateAmount:     opts.GateAmount,
 
 		lastAction: &sync.Map{},
@@ -58,6 +56,7 @@ func New(opts *Opts) *FlashFlood {
 		tickerCtx:    tickerCtx,
 		tickerCancel: &tickerCancel,
 		ticker:       time.NewTicker(opts.TickerTime),
+		tickerWg:     &tickerWg,
 		timeout:      opts.Timeout,
 		opts:         opts,
 
@@ -69,7 +68,8 @@ func New(opts *Opts) *FlashFlood {
 		ff.lastFlush.Store(lastFlush, time.Now())
 	}
 
-	go handleTicker(ff)
+	// Start ticker goroutine after all initialization is complete
+	go handleTicker[T](ff)
 	return ff
 }
 
@@ -107,10 +107,13 @@ func handleOpts(opts *Opts) (defaultOpts *Opts) {
 }
 
 // Close Cleanup resources and kill timers/tickers etc
-func (i *FlashFlood) Close() {
-
-	// Nuke ticker
+func (i *FlashFlood[T]) Close() {
+	// Stop ticker and wait for goroutine to finish
 	(*i.tickerCancel)()
+	i.tickerWg.Wait()
+
+	// Now it's safe to modify fields since ticker goroutine has stopped
+	i.mutex.Lock()
 
 	i.channelFetched = nil
 	i.floodChan = nil
@@ -118,20 +121,22 @@ func (i *FlashFlood) Close() {
 	i.funcstack = nil
 	i.lastAction = nil
 
-	// i.lastActionMutex = nil
-
 	i.opts = nil
-
-	i.mutex = nil
 
 	if len(i.buffer) != 0 {
 		log.Println("Close called on non empty buffer")
 	}
 
 	i.buffer = nil
+
+	i.mutex.Unlock()
+	i.mutex = nil
 }
 
-func handleTicker(i *FlashFlood) {
+func handleTicker[T any](i *FlashFlood[T]) {
+	i.tickerWg.Add(1)
+	defer i.tickerWg.Done()
+
 	run := true
 	var elapsed time.Duration
 
@@ -139,7 +144,6 @@ func handleTicker(i *FlashFlood) {
 		select {
 		case <-i.tickerCtx.Done():
 			run = false
-			break
 		case <-i.ticker.C:
 
 			if e, ok := i.lastAction.Load(lastAction); ok {
@@ -147,7 +151,7 @@ func handleTicker(i *FlashFlood) {
 			}
 
 			if elapsed > i.timeout {
-				i.Drain(true, false)
+				_, _ = i.Drain(true, false)
 			} else {
 				if i.flushEnabled {
 
@@ -156,7 +160,7 @@ func handleTicker(i *FlashFlood) {
 					}
 
 					if elapsed > i.flushTimeout {
-						i.Drain(true, true)
+						_, _ = i.Drain(true, true)
 					}
 				}
 			}
@@ -166,15 +170,14 @@ func handleTicker(i *FlashFlood) {
 	i.ticker.Stop()
 	i.ticker.C = nil
 	i.ticker = nil
-
 }
 
-func (i *FlashFlood) handleDrainObjs() []interface{} {
+func (i *FlashFlood[T]) handleDrainObjs() []T {
 	if i.opts.DisableRingUntilChanActive && !(*i.channelFetched).IsChannelFetched() {
 		return nil
 	}
 
-	var drainObjs []interface{}
+	var drainObjs []T
 	bl := int64(len(i.buffer))
 	toDrain := bl - i.bufferAmount
 
@@ -191,23 +194,21 @@ func (i *FlashFlood) handleDrainObjs() []interface{} {
 	return drainObjs
 }
 
-//Push add objects to buffer
-func (i *FlashFlood) Push(objs ...interface{}) error {
+// Push add objects to buffer
+func (i *FlashFlood[T]) Push(objs ...T) error {
 	i.mutex.Lock()
 	i.buffer = append(i.buffer, objs...)
-	// fmt.Println("LEN BUFFER IS", len(i.buffer))
 	drainObjs := i.handleDrainObjs()
 	if drainObjs != nil {
 		i.flush2Channel(drainObjs, false, false)
 	}
 	i.mutex.Unlock()
 	i.Ping()
-	// TODO err is always nil here, stub to not break bw compatibility in the future
 	return nil
 }
 
-//Unshift add objects to the front of buffer
-func (i *FlashFlood) Unshift(objs ...interface{}) error {
+// Unshift add objects to the front of buffer
+func (i *FlashFlood[T]) Unshift(objs ...T) error {
 	i.mutex.Lock()
 	defer i.mutex.Unlock()
 
@@ -217,23 +218,19 @@ func (i *FlashFlood) Unshift(objs ...interface{}) error {
 		i.flush2Channel(drainObjs, false, false)
 	}
 	i.Ping()
-	// TODO err is always nil here, stub to not break bw compatibility in the future
 	return nil
 }
 
-func (i *FlashFlood) flush2Channel(objs []interface{}, isInteralBuffer bool, respectGate bool) {
-
+func (i *FlashFlood[T]) flush2Channel(objs []T, isInteralBuffer bool, respectGate bool) {
 	bl := int64(len(objs))
 
 	if bl > 0 && (*i.channelFetched).IsChannelFetched() {
 
 		if isInteralBuffer {
-
 			if i.gateAmount > 1 {
 				if bl >= i.gateAmount {
 					objs, i.buffer = objs[0:i.gateAmount], objs[i.gateAmount:]
 				} else {
-
 					if !respectGate {
 						objs = i.buffer
 						i.clearBuffer()
@@ -243,7 +240,6 @@ func (i *FlashFlood) flush2Channel(objs []interface{}, isInteralBuffer bool, res
 				objs = i.buffer
 				i.clearBuffer()
 			}
-
 		}
 		blAfter := int64(len(objs))
 
@@ -259,46 +255,44 @@ func (i *FlashFlood) flush2Channel(objs []interface{}, isInteralBuffer bool, res
 			i.flush2Channel(i.buffer, true, respectGate)
 		}
 	}
-
 }
 
-//GetChan get the overflow channel
-func (i *FlashFlood) GetChan() (<-chan interface{}, error) {
+// GetChan get the overflow channel
+func (i *FlashFlood[T]) GetChan() (<-chan T, error) {
 	(*i.channelFetched).ChannelFetched()
-	// TODO err is always nil here, stub to not break bw compatibility in the future
 	return i.floodChan, nil
 }
 
 // Purge clears buffer
-func (i *FlashFlood) Purge() error {
+func (i *FlashFlood[T]) Purge() error {
 	i.mutex.Lock()
 	defer i.mutex.Unlock()
 	i.clearBuffer()
 	return nil
 }
 
-//Ping updates lastaction to postpone timeout
-func (i *FlashFlood) Ping() {
+// Ping updates lastaction to postpone timeout
+func (i *FlashFlood[T]) Ping() {
 	i.lastAction.Store(lastAction, time.Now())
 }
 
-//Count returns amount of elements in buffer
-func (i *FlashFlood) Count() uint64 {
+// Count returns amount of elements in buffer
+func (i *FlashFlood[T]) Count() uint64 {
 	i.mutex.Lock()
 	defer i.mutex.Unlock()
 	cnt := uint64(len(i.buffer))
 	return cnt
 }
 
-func (i *FlashFlood) clearBuffer() {
+func (i *FlashFlood[T]) clearBuffer() {
 	// make sure we have a mutex Lock
 	i.Ping()
 	i.buffer = nil
 }
 
-//Get amount of elements from buffer
-func (i *FlashFlood) Get(amount int) ([]interface{}, error) {
-	var drainObjs []interface{}
+// Get amount of elements from buffer
+func (i *FlashFlood[T]) Get(amount int) ([]T, error) {
+	var drainObjs []T
 
 	i.mutex.Lock()
 	bl := len(i.buffer)
@@ -327,20 +321,19 @@ func (i *FlashFlood) Get(amount int) ([]interface{}, error) {
 	return drainObjs, nil
 }
 
-//GetOnChan amount of elements from buffer, flush to channel
-func (i *FlashFlood) GetOnChan(amount int) error {
+// GetOnChan amount of elements from buffer, flush to channel
+func (i *FlashFlood[T]) GetOnChan(amount int) error {
 	drainObjs, err := i.Get(amount)
 	_ = err
-	//TODO implement error handling once Get can throw an error
+	// TODO implement error handling once Get can throw an error
 
 	i.flush2Channel(drainObjs, false, false)
 
 	return nil
 }
 
-//Drain drains buffer into channel or as slice (onChannel bool)
-func (i *FlashFlood) Drain(onChannel bool, respectGate bool) ([]interface{}, error) {
-
+// Drain drains buffer into channel or as slice (onChannel bool)
+func (i *FlashFlood[T]) Drain(onChannel bool, respectGate bool) ([]T, error) {
 	i.lastFlush.Store(lastFlush, time.Now())
 
 	i.mutex.Lock()
@@ -366,15 +359,15 @@ func (i *FlashFlood) Drain(onChannel bool, respectGate bool) ([]interface{}, err
 	return objs, nil
 }
 
-//AddFunc add a "callback" function to the callstack to be performed on the objects drained
-func (i *FlashFlood) AddFunc(f FuncStack) {
+// AddFunc add a "callback" function to the callstack to be performed on the objects drained
+func (i *FlashFlood[T]) AddFunc(f FuncStack[T]) {
 	l := len(i.funcstack)
 	debughandler := i.funcstack[l-1]
 	i.funcstack[l-1] = f
 	i.funcstack = append(i.funcstack, debughandler)
 }
 
-func debugFunc(i []interface{}, ff *FlashFlood) []interface{} {
+func debugFunc[T any](i []T, ff *FlashFlood[T]) []T {
 	if ff.debug {
 		fmt.Printf("DEBUG: %#v\n", i)
 	}

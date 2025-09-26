@@ -7,13 +7,14 @@ import (
 	"testing"
 	"time"
 
-	"github.com/thisisdevelopment/flashflood"
+	"github.com/thisisdevelopment/flashflood/v2"
 )
 
-//TestLargeWithGate confirmation of bug I found on one of my implementations
-func TestLargeWithGateAndFuncScenario1(t *testing.T) {
+// TestObj and getTestObjs are defined in flashflood__01_test.go
 
-	ff := flashflood.New(&flashflood.Opts{
+// TestLargeWithGate confirmation of bug I found on one of my implementations
+func TestLargeWithGateAndFuncScenario1(t *testing.T) {
+	ff := flashflood.New[[]TestObj](&flashflood.Opts{
 		BufferAmount: 256,
 		Timeout:      time.Duration(250 * time.Millisecond),
 		FlushTimeout: time.Duration(500 * time.Millisecond),
@@ -22,12 +23,11 @@ func TestLargeWithGateAndFuncScenario1(t *testing.T) {
 		TickerTime:   time.Duration(50 * time.Millisecond),
 	})
 
-	ff.AddFunc(ff.FuncMergeChunkedElements())
+	ff.AddFunc(flashflood.FuncMergeChunkedElements[TestObj]())
 
 	amount := 100000
 
 	ch, err := ff.GetChan()
-
 	if err != nil {
 		t.Fatalf("could not get channel: %v", err)
 	}
@@ -49,9 +49,9 @@ func TestLargeWithGateAndFuncScenario1(t *testing.T) {
 			case v := <-ch:
 				// spew.Dump(v)
 				// panic(nil)
-				cnt += len(v.([]interface{}))
-				// fmt.Println("LEN IS ", len(v.([]interface{})), cnt)
-				wg.Add(len(v.([]interface{})) * -1)
+				cnt += len(v) // v is []TestObj chunk, count all items in it
+				// fmt.Println("LEN IS ", len(v), cnt)
+				wg.Add(len(v) * -1) // Decrement by number of items in chunk
 
 				if cnt == amount {
 					*run = false
@@ -66,39 +66,37 @@ func TestLargeWithGateAndFuncScenario1(t *testing.T) {
 
 	objs := getTestObjs(amount)
 	for _, o := range objs {
-		ff.Push(o)
+		ff.Push([]TestObj{o}) // Push single-element slice for chunked processing
 		// time.Sleep(1 * time.Millisecond)
 	}
 
 	select {
 	case chanErr := <-errChan:
 		if chanErr != nil {
-			t.Fatalf(chanErr.Error())
+			t.Fatal(chanErr)
 		}
 	}
 
 	wg.Wait()
-
 }
 
 func TestLargeWithGateAndFuncScenario2(t *testing.T) {
-
-	ff := flashflood.New(&flashflood.Opts{
+	ff := flashflood.New[[]TestObj](&flashflood.Opts{
 		BufferAmount:               256,
 		Timeout:                    time.Duration(250 * time.Millisecond),
-		FlushTimeout:               time.Duration(500 * time.Millisecond),
+		FlushTimeout:               500 * time.Millisecond,
 		FlushEnabled:               true,
 		GateAmount:                 64,
 		TickerTime:                 time.Duration(50 * time.Millisecond),
 		DisableRingUntilChanActive: true,
 	})
 
-	ff.AddFunc(ff.FuncMergeChunkedElements())
+	ff.AddFunc(flashflood.FuncMergeChunkedElements[TestObj]())
 	amount := 100000
 
 	objs := getTestObjs(amount)
 	for _, o := range objs {
-		ff.Push(o)
+		ff.Push([]TestObj{o}) // Push single-element slice for chunked processing
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 30000*time.Millisecond)
@@ -124,9 +122,9 @@ func TestLargeWithGateAndFuncScenario2(t *testing.T) {
 			case v := <-ch:
 				// spew.Dump(v)
 				// panic(nil)
-				cnt += len(v.([]interface{}))
-				// fmt.Println("LEN IS ", len(v.([]interface{})), cnt)
-				wg.Add(len(v.([]interface{})) * -1)
+				cnt += len(v) // v is []TestObj chunk, count all items in it
+				// fmt.Println("LEN IS ", len(v), cnt)
+				wg.Add(len(v) * -1) // Decrement by number of items in chunk
 				if cnt == amount {
 					*run = false
 					close(*errChan)
@@ -141,7 +139,7 @@ func TestLargeWithGateAndFuncScenario2(t *testing.T) {
 	select {
 	case chanErr := <-errChan:
 		if chanErr != nil {
-			t.Fatalf(chanErr.Error())
+			t.Fatal(chanErr)
 		}
 	}
 

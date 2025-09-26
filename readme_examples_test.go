@@ -4,14 +4,14 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/thisisdevelopment/flashflood"
+	flashflood "github.com/thisisdevelopment/flashflood/v2"
 )
 
 // Example demonstrating basic usage from README
 func ExampleFlashFlood_basicUsage() {
 	// Create buffer that flushes when buffer fills or after 250ms
-	ff := flashflood.New(&flashflood.Opts{
-		BufferAmount: 3,  // Internal buffer size
+	ff := flashflood.New[string](&flashflood.Opts{
+		BufferAmount: 3, // Internal buffer size
 		Timeout:      250 * time.Millisecond,
 	})
 
@@ -25,6 +25,7 @@ func ExampleFlashFlood_basicUsage() {
 	for i := 0; i < 4; i++ {
 		select {
 		case item := <-ch:
+			// item is guaranteed to be string - no casting needed!
 			fmt.Printf("Received: %v\n", item)
 		case <-time.After(500 * time.Millisecond):
 			// Allow timeout to flush remaining items
@@ -47,29 +48,30 @@ done:
 	// Received: item4
 }
 
-// Example demonstrating database batch inserts scenario - ORIGINAL VERSION
-func ExampleFlashFlood_databaseBatching_original() {
-	// Collect exactly 3 records, then bulk insert
-	ff := flashflood.New(&flashflood.Opts{
-		BufferAmount: 10,
-		GateAmount:   3,    // Always process 3 records at once
-		Timeout:      1 * time.Second,
+// Example showing individual item processing (vs batched)
+func ExampleFlashFlood_individualProcessing() {
+	// Process individual records
+	ff := flashflood.New[string](&flashflood.Opts{
+		BufferAmount: 2, // Small buffer to trigger overflow
+		Timeout:      100 * time.Millisecond,
 	})
 
 	ch, _ := ff.GetChan()
 
-	// Simulate adding database records
+	// Add individual records
 	ff.Push("record1", "record2", "record3", "record4", "record5")
 
-	// Process first batch (exactly 3 items)
+	// Process individual records
 	count := 0
+	timeout := time.After(200 * time.Millisecond)
 	for count < 5 {
 		select {
 		case item := <-ch:
+			// item is guaranteed to be string - no casting needed!
 			fmt.Printf("Processing: %v\n", item)
 			count++
-		case <-time.After(1500 * time.Millisecond):
-			// Timeout will flush remaining items
+		case <-timeout:
+			// Handle any remaining items
 			for {
 				select {
 				case item := <-ch:
@@ -93,20 +95,20 @@ done2:
 
 // Example demonstrating database batch inserts scenario - CORRECTED VERSION
 func ExampleFlashFlood_databaseBatching() {
-	// Collect exactly 3 records, then bulk insert
-	ff := flashflood.New(&flashflood.Opts{
+	// Create buffer that outputs batches of strings
+	ff := flashflood.New[[]string](&flashflood.Opts{
 		BufferAmount: 10,
-		GateAmount:   3,    // Always process 3 records at once
+		GateAmount:   3, // Always process 3 records at once
 		Timeout:      1 * time.Second,
 	})
 
 	// Add function to keep batched elements grouped
-	ff.AddFunc(ff.FuncMergeChunkedElements())
+	ff.AddFunc(flashflood.FuncMergeChunkedElements[string]())
 
 	ch, _ := ff.GetChan()
 
-	// Simulate adding database records
-	ff.Push("record1", "record2", "record3", "record4", "record5")
+	// Simulate adding database records individually for batching
+	ff.Push([]string{"record1"}, []string{"record2"}, []string{"record3"}, []string{"record4"}, []string{"record5"})
 
 	// Wait for timeout to ensure all items are processed
 	time.Sleep(1500 * time.Millisecond)
@@ -115,6 +117,7 @@ func ExampleFlashFlood_databaseBatching() {
 	for {
 		select {
 		case batch := <-ch:
+			// batch is []string - no casting needed!
 			fmt.Printf("Batch: %v\n", batch)
 		default:
 			goto done2
@@ -129,26 +132,23 @@ done2:
 
 // Example demonstrating byte stream processing with gates
 func ExampleFlashFlood_byteProcessing() {
-	// Process data in chunks of exactly 3 bytes
-	ff := flashflood.New(&flashflood.Opts{
-		BufferAmount: 10,
-		GateAmount:   3,  // Process 3 bytes at once
+	// Process individual byte slices
+	ff := flashflood.New[[]byte](&flashflood.Opts{
+		BufferAmount: 2, // Small buffer to trigger overflow
 		Timeout:      100 * time.Millisecond,
 	})
 
-	// Add merge function to combine byte slices
-	ff.AddFunc(ff.FuncMergeBytes())
-
 	ch, _ := ff.GetChan()
 
-	// Add individual bytes
-	ff.Push([]byte{0x1}, []byte{0x2}, []byte{0x3}, []byte{0x4})
+	// Add byte slices
+	ff.Push([]byte{0x1, 0x2, 0x3}, []byte{0x4})
 
-	// Process merged byte chunks
+	// Process byte slices
 	processed := 0
 	for processed < 2 {
 		select {
 		case chunk := <-ch:
+			// chunk is []byte - no casting needed!
 			fmt.Printf("Chunk: %v\n", chunk)
 			processed++
 		case <-time.After(200 * time.Millisecond):
@@ -173,7 +173,7 @@ done3:
 
 // Example demonstrating manual control operations
 func ExampleFlashFlood_manualControl() {
-	ff := flashflood.New(&flashflood.Opts{
+	ff := flashflood.New[string](&flashflood.Opts{
 		BufferAmount: 5,
 		Timeout:      1 * time.Second,
 	})
@@ -202,6 +202,7 @@ func ExampleFlashFlood_manualControl() {
 	// Receive drained items
 	select {
 	case item := <-ch:
+		// item is guaranteed to be string - no casting needed!
 		fmt.Printf("Drained: %v\n", item)
 	case <-time.After(100 * time.Millisecond):
 		fmt.Println("No items in channel")

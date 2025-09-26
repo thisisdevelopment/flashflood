@@ -5,7 +5,7 @@ import (
 )
 
 func TestDefaultOpts(t *testing.T) {
-	ff := New(&Opts{
+	ff := New[string](&Opts{
 		BufferAmount: 3,
 	})
 
@@ -19,7 +19,6 @@ func TestDefaultOpts(t *testing.T) {
 }
 
 func TestChannelFetchedStatus(t *testing.T) {
-
 	o := NewChannelFetchedStatus()
 	if o.IsChannelFetched() == true {
 		t.Fatalf("expected: false got true")

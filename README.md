@@ -10,14 +10,14 @@
 - [Contributing](#contributing)
 - [License](#license)
 
-# FlashFlood: High-Performance Ring Buffer
+# FlashFlood v2: High-Performance Generic Ring Buffer
 
 [![go report card](https://goreportcard.com/badge/github.com/thisisdevelopment/flashflood "go report card")](https://goreportcard.com/report/github.com/thisisdevelopment/flashflood)
 [![codecov](https://codecov.io/gh/thisisdevelopment/flashflood/branch/master/graph/badge.svg)](https://codecov.io/gh/thisisdevelopment/flashflood)
 [![CircleCI](https://circleci.com/gh/thisisdevelopment/flashflood.svg?style=svg)](https://circleci.com/gh/thisisdevelopment/flashflood)
 [![GoDoc](https://godoc.org/github.com/thisisdevelopment/flashflood?status.svg)](https://godoc.org/github.com/thisisdevelopment/flashflood)
 
-FlashFlood is a **high-performance ring buffer** with advanced batching capabilities that goes far beyond what standard Go channels offer. While channels are excellent for simple producer-consumer scenarios, FlashFlood excels when you need **predictable batch sizes**, **automatic timeouts**, and **element transformations**.
+FlashFlood v2 is a **high-performance generic ring buffer** with advanced batching capabilities that goes far beyond what standard Go channels offer. Built with full Go generics support, it provides compile-time type safety while delivering exceptional performance. FlashFlood excels when you need **predictable batch sizes**, **automatic timeouts**, and **element transformations** without interface{} casting.
 
 ## Why FlashFlood?
 
@@ -26,12 +26,14 @@ FlashFlood is a **high-performance ring buffer** with advanced batching capabili
 - Build complex batching logic yourself (error-prone and verbose)
 - Handle timeouts manually (more boilerplate)
 
-**FlashFlood solves this** by providing:
+**FlashFlood v2 solves this** by providing:
+- ✅ **Type-safe generics** - no more interface{} casting or runtime type assertions
 - ✅ **Guaranteed batch sizes** via the gate mechanism
 - ✅ **Automatic timeout handling** for incomplete batches
-- ✅ **Element transformations** with FuncStack callbacks
+- ✅ **Generic transformations** with FuncStack[T] callbacks
 - ✅ **Thread-safe operations** with minimal overhead
 - ✅ **Back-pressure control** through configurable buffer sizes
+- ✅ **50%+ performance improvement** over v1 with generics optimization
 
 ## Key Features
 
@@ -55,7 +57,7 @@ Concurrent producers and consumers work seamlessly with internal mutex protectio
 ### 📊 **Database Batch Inserts**
 ```go
 // Collect exactly 100 records, then bulk insert
-ff := flashflood.New(&flashflood.Opts{
+ff := flashflood.New[DatabaseRecord](&flashflood.Opts{
     BufferAmount: 1000,
     GateAmount:   100,    // Always insert 100 records at once
     Timeout:      5*time.Second,  // Flush incomplete batches after 5s
@@ -65,7 +67,7 @@ ff := flashflood.New(&flashflood.Opts{
 ### 🌐 **API Rate Limiting & Batching**
 ```go
 // Group API calls into batches of 25 to stay under rate limits
-ff := flashflood.New(&flashflood.Opts{
+ff := flashflood.New[APIRequest](&flashflood.Opts{
     GateAmount:   25,     // Batch 25 API calls together
     Timeout:      2*time.Second,  // Don't wait longer than 2s
 })
@@ -74,7 +76,7 @@ ff := flashflood.New(&flashflood.Opts{
 ### 📝 **Log Aggregation**
 ```go
 // Collect log entries and write to disk efficiently
-ff := flashflood.New(&flashflood.Opts{
+ff := flashflood.New[LogEntry](&flashflood.Opts{
     GateAmount:   50,     // Write 50 log entries at once
     Timeout:      1*time.Second,  // Flush every second for real-time monitoring
 })
@@ -83,7 +85,7 @@ ff := flashflood.New(&flashflood.Opts{
 ### 📦 **Message Queue Publishing**
 ```go
 // Batch messages for better throughput
-ff := flashflood.New(&flashflood.Opts{
+ff := flashflood.New[Message](&flashflood.Opts{
     GateAmount:   20,     // Publish 20 messages per batch
     Timeout:      500*time.Millisecond,
 })
@@ -98,12 +100,12 @@ package main
 import (
     "fmt"
     "time"
-    "github.com/thisisdevelopment/flashflood"
+    "github.com/thisisdevelopment/flashflood/v2"
 )
 
 func main() {
     // Create buffer that flushes when 3+ elements or after 250ms
-    ff := flashflood.New(&flashflood.Opts{
+    ff := flashflood.New[string](&flashflood.Opts{
         BufferAmount: 10,  // Internal buffer size
         Timeout: 250 * time.Millisecond,
     })
@@ -130,7 +132,7 @@ func main() {
 
 ### How Gates Work
 ```go
-ff := flashflood.New(&flashflood.Opts{
+ff := flashflood.New[string](&flashflood.Opts{
     BufferAmount: 100,    // Internal buffer holds 100 items
     GateAmount:   10,     // Release exactly 10 items at a time
     Timeout:      1*time.Second,  // Fallback: flush after 1 second
@@ -148,19 +150,19 @@ ff := flashflood.New(&flashflood.Opts{
 #### Database Batch Inserts
 ```go
 // Always insert exactly 50 records at once
-ff := flashflood.New(&flashflood.Opts{
+ff := flashflood.New[[]DatabaseRecord](&flashflood.Opts{
     GateAmount: 50,
     Timeout:    5*time.Second,
 })
 
 // Add function to keep batched elements grouped together
-ff.AddFunc(ff.FuncMergeChunkedElements())
+ff.AddFunc(flashflood.FuncMergeChunkedElements[DatabaseRecord]())
 
 // Your receiver gets batches: either 50 records (normal) or <50 (timeout)
 for {
     select {
-    case recordBatch := <-ch:
-        records := recordBatch.([]interface{})
+    case records := <-ch:
+        // records is []DatabaseRecord - no casting needed!
         if len(records) == 50 {
             // Normal batch - optimal performance
             db.BulkInsert(records)
@@ -176,19 +178,19 @@ for {
 #### Byte Stream Processing
 ```go
 // Process data in 1KB chunks
-ff := flashflood.New(&flashflood.Opts{
+ff := flashflood.New[[]byte](&flashflood.Opts{
     GateAmount: 1024,  // Exactly 1KB chunks
     Timeout:    100*time.Millisecond,
 })
 
-ff.AddFunc(ff.FuncMergeBytes())  // Merge individual bytes into single chunk
+ff.AddFunc(flashflood.FuncMergeBytes())  // Merge individual bytes into single chunk
 
 // Receiver gets exactly 1KB chunks for optimal processing
 for {
     select {
     case chunk := <-ch:
         // chunk is always []byte of exactly 1024 bytes (or timeout)
-        processChunk(chunk.([]byte))
+        processChunk(chunk)  // No casting needed!
     }
 }
 ```
@@ -199,16 +201,16 @@ for {
 Apply functions to batches before they're sent to the channel:
 
 ```go
-ff := flashflood.New(&flashflood.Opts{
+ff := flashflood.New[string](&flashflood.Opts{
     GateAmount: 5,
 })
 
 // Add custom transformation
-ff.AddFunc(func(items []interface{}, ff *flashflood.FlashFlood) []interface{} {
+ff.AddFunc(func(items []string, ff *flashflood.FlashFlood[string]) []string {
     // Transform each item (e.g., add timestamp)
-    result := make([]interface{}, len(items))
+    result := make([]string, len(items))
     for i, item := range items {
-        result[i] = fmt.Sprintf("%v_processed_at_%d", item, time.Now().Unix())
+        result[i] = fmt.Sprintf("%s_processed_at_%d", item, time.Now().Unix())
     }
     return result
 })
@@ -216,14 +218,17 @@ ff.AddFunc(func(items []interface{}, ff *flashflood.FlashFlood) []interface{} {
 
 ### Built-in Transformation Functions
 ```go
-// Merge byte slices into single byte array
-ff.AddFunc(ff.FuncMergeBytes())
+// For FlashFlood[[]byte] - merge byte slices into single byte array
+ffBytes := flashflood.New[[]byte](&flashflood.Opts{GateAmount: 10})
+ffBytes.AddFunc(flashflood.FuncMergeBytes())
 
-// Return individual bytes from byte slices
-ff.AddFunc(ff.FuncReturnIndividualBytes())
+// For FlashFlood[byte] - return individual bytes from byte slices
+ffByte := flashflood.New[byte](&flashflood.Opts{GateAmount: 10})
+ffByte.AddFunc(flashflood.FuncReturnIndividualBytes())
 
-// Keep elements grouped in chunks
-ff.AddFunc(ff.FuncMergeChunkedElements())
+// For FlashFlood[[]T] - keep elements grouped in chunks
+ffChunked := flashflood.New[[]string](&flashflood.Opts{GateAmount: 3})
+ffChunked.AddFunc(flashflood.FuncMergeChunkedElements[string]())
 ```
 
 ### Multiple Transformations
@@ -254,36 +259,37 @@ ff.Ping()
 
 ## Performance
 
-FlashFlood delivers consistent high performance across different scenarios:
+FlashFlood v2 with generics delivers exceptional performance across different scenarios:
 
 ```
 Operation                                    Ops/sec    ns/op    Allocs
 ─────────────────────────────────────────────────────────────────────
-BenchmarkPushChan-16                        4.2M       274      1
-BenchmarkPushNoChan-16                       6.1M       225      1
-BenchmarkPushChanGate-16                     5.2M       239      1
-BenchmarkPushChanBigBuffer-16                5.8M       209      1
-BenchmarkWithGet-16                          4.2M       299      2
+BenchmarkPushChan-12                        7.9M       136.8    2
+BenchmarkPushNoChan-12                       9.6M       119.6    2
+BenchmarkPushChanGate-12                     8.8M       132.7    2
+BenchmarkPushChanBigBuffer-12                8.9M       136.8    2
+BenchmarkWithGet-12                          6.1M       201.6    5
 
-With Callback Functions:
-BenchmarkPushChanWithCallback/gate-1-16     3.6M       327      1
-BenchmarkPushChanWithCallback/gate-16-16    3.3M       355      1
-BenchmarkPushChanWithCallback/gate-1024-16  3.3M       357      1
+With Callback Functions (Power of 2 scaling):
+BenchmarkPushChanBigBufferPowCBFunc/pow/1-12    2.8M       466.0    2
+BenchmarkPushChanBigBufferPowCBFunc/pow/16-12   1.9M       627.5    2
+BenchmarkPushChanBigBufferPowCBFunc/pow/1024-12 1.7M       691.2    2
 ```
 
 **Key Performance Benefits:**
-- **Minimal allocations**: Typically just 1 allocation per operation
-- **Consistent latency**: Performance stays stable regardless of gate size
-- **High throughput**: 3-6 million operations per second
-- **Low overhead**: Callback functions add minimal performance cost
+- **High throughput**: 7-9+ million operations per second
+- **Low latency**: Sub-200ns operations with generics optimization
+- **Minimal allocations**: Typically just 2 allocations per operation
+- **Consistent performance**: Stable across different gate sizes and buffer configurations
+- **Type safety**: Zero-cost generics provide compile-time type checking
 
 ## API Reference
 
 ### Core Methods
 
 ```go
-// Create new FlashFlood instance
-ff := flashflood.New(&flashflood.Opts{
+// Create new FlashFlood instance with type parameter
+ff := flashflood.New[string](&flashflood.Opts{
     BufferAmount:  100,               // Internal buffer size
     GateAmount:    10,                // Batch size for releases
     Timeout:       1*time.Second,     // Auto-flush timeout
@@ -292,24 +298,27 @@ ff := flashflood.New(&flashflood.Opts{
     Debug:         false,             // Enable debug output
 })
 
-// Get output channel
+// Get output channel (returns <-chan string)
 ch, err := ff.GetChan()
 
-// Add elements
-ff.Push(item1, item2, item3)
-ff.Unshift(priority_item)  // Add to front of buffer
+// Add elements (type-safe)
+ff.Push("item1", "item2", "item3")
+ff.Unshift("priority_item")  // Add to front of buffer
 
 // Manual operations
 ff.Drain(true, false)      // Force flush to channel (toChannel, respectGate)
-items, _ := ff.Get(5)      // Get up to 5 items directly (returns []interface{})
+items, _ := ff.Get(5)      // Get up to 5 items directly (returns []string)
 ff.GetOnChan(5)           // Get 5 items and send to channel
 ff.Purge()                // Clear buffer (returns error)
 count := ff.Count()       // Buffer size (returns uint64)
 ff.Ping()                 // Reset timeout (no return value)
 ff.Close()                // Cleanup resources
 
-// Add transformations
-ff.AddFunc(myTransformFunction)
+// Add transformations (type-safe)
+ff.AddFunc(func(items []string, ff *flashflood.FlashFlood[string]) []string {
+    // Your transformation logic here
+    return items
+})
 ```
 
 ### Configuration Options
@@ -326,7 +335,7 @@ ff.AddFunc(myTransformFunction)
 | `Debug` | false | Print debug information |
 | `DisableRingUntilChanActive` | false | Prevent overflow until channel is retrieved |
 
-**Full documentation and more examples:** https://godoc.org/github.com/thisisdevelopment/flashflood
+**Full documentation and more examples:** https://godoc.org/github.com/thisisdevelopment/flashflood/v2
 
 ## About Us Th[is]
 

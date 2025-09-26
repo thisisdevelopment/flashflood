@@ -1,3 +1,3 @@
-module github.com/thisisdevelopment/flashflood
+module github.com/thisisdevelopment/flashflood/v2
 
-go 1.13
+go 1.21

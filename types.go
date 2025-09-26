@@ -7,19 +7,20 @@ import (
 )
 
 // FuncStack type function to be called as callback on drained elements
-type FuncStack func(objs []interface{}, ff *FlashFlood) []interface{}
+type FuncStack[T any] func(objs []T, ff *FlashFlood[T]) []T
 
-//FlashFlood struct
-type FlashFlood struct {
-	buffer       []interface{}
+// FlashFlood struct with generic type parameter
+type FlashFlood[T any] struct {
+	buffer       []T
 	bufferAmount int64
 	mutex        *sync.Mutex
 
 	tickerCtx    context.Context
 	tickerCancel *context.CancelFunc
 	ticker       *time.Ticker
+	tickerWg     *sync.WaitGroup
 
-	floodChan      chan interface{}
+	floodChan      chan T
 	channelFetched *ChannelFetchedStatus
 
 	lastAction *sync.Map
@@ -29,35 +30,32 @@ type FlashFlood struct {
 	flushEnabled bool
 	timeout      time.Duration
 
-	funcstack  []FuncStack
+	funcstack  []FuncStack[T]
 	gateAmount int64
 	debug      bool
 	opts       *Opts
 }
 
-//FF the interface
-type FF interface {
-	AddFunc(f ...FuncStack)
+// FF the generic interface
+type FF[T any] interface {
+	AddFunc(f FuncStack[T])
 	Close()
 	Count() uint64
-	Drain(onChannel bool) ([]interface{}, error)
-	FuncMergeBytes() FuncStack
-	FuncMergeChunkedElements() FuncStack
-	FuncReturnIndividualBytes() FuncStack
-	GetChan() (<-chan interface{}, error)
+	Drain(onChannel bool, respectGate bool) ([]T, error)
+	GetChan() (<-chan T, error)
 	GetOnChan(amount int) error
-	Get(amount int) ([]interface{}, error)
-	Unshift(objs ...interface{}) error
+	Get(amount int) ([]T, error)
+	Unshift(objs ...T) error
 	Ping()
 	Purge() error
-	Push(objs ...interface{}) error
+	Push(objs ...T) error
 }
 
-//Opts ...
+// Opts ...
 type Opts struct {
 	// the amount of the internal buffer, if buffer is full elements will be drained to channel
 	BufferAmount int64
-	//disable Ring functionality until channel is fetched. Beaware Buffer will increase until we can flush it to the channel
+	// disable Ring functionality until channel is fetched. Beaware Buffer will increase until we can flush it to the channel
 	DisableRingUntilChanActive bool
 	// enable the flush timeout
 	FlushEnabled bool
